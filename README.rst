@@ -4,6 +4,10 @@
 TracBoat
 ========
 
+**YSHURIK: This is fork of original TracBoat with adjusted to perform migration of huge (10-years of activity) trac-based project with a lot of attachments in tickets (>2k tickets, >1GB of all attachments). Original version of tracboat loads everything in memory and can not perform migration as just crashing with lack of memory**
+
+**I guess I am going to maintain this as long-time project, though it can be reused with adjustements for another migrations of huge Trac-based projects**
+
 |build-status| |coverage-status| |codeqa| |license-status|
 
 A life boat to escape the Trac ocean liner.
