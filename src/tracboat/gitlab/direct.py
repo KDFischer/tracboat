@@ -53,6 +53,8 @@ USER_DEFAULTS = {
     'skype': '',
     'twitter': '',
     'website_url': '',
+    'created_at' : datetime.now(),
+    'state' : 'active',
 }
 
 
@@ -184,6 +186,8 @@ class Connection(ConnectionBase):
             parms = dict(USER_DEFAULTS)
             parms.update(kwargs)
             parms['email'] = email
+            parms['name'] = email
+            parms['projects_limit'] = 100000
             parms.setdefault('public_email', email)
             user = M.Users.create(**parms)
             user.save()
@@ -245,7 +249,7 @@ class Connection(ConnectionBase):
             except M.Labels.DoesNotExist:
                 label = M.Labels.create(
                     title=title,
-                    color='#0000FF',
+                    color='#999999',
                     project=issue.project,
                     type='ProjectLabel',
                     created_at=issue.created_at,
