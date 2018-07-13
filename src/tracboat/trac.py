@@ -2,6 +2,8 @@
 
 import logging
 import ssl
+import hashlib
+from os import path
 
 import six
 from six.moves import xmlrpc_client as xmlrpc
@@ -50,10 +52,29 @@ def ticket_get_changelog(source, ticket_id):
     ]
 
 
-def ticket_get_attachments(source, ticket_id):
+def ticket_get_attachments(source, ticket_id, attachments_path):
     LOG.debug('ticket_get_attachments of ticket #%s', ticket_id)
-    return {
-        meta[0]: {
+    ret = {}
+    try:
+        als = source.ticket.listAttachments(ticket_id)
+    except:
+        try:
+            als = source.ticket.listAttachments(ticket_id)
+        except:
+            als = []
+    for meta in als:
+        try:
+            data = _safe_retrieve_data(source.ticket.getAttachment(ticket_id, meta[0]).data)
+        except:
+            try:
+                data = _safe_retrieve_data(source.ticket.getAttachment(ticket_id, meta[0]).data)
+            except:
+                data = ''
+        hash = hashlib.md5(data).hexdigest()
+        with open(path.join(attachments_path, hash), 'w') as f:
+            f.write(data)
+            f.close()
+        ret[meta[0]] =  {
             'attributes': {
                 'filename': meta[0],
                 'description': meta[1],
@@ -61,19 +82,18 @@ def ticket_get_attachments(source, ticket_id):
                 'time': meta[3],
                 'author': meta[4],
             },
-            'data': _safe_retrieve_data(source.ticket.getAttachment(ticket_id, meta[0]).data)
+            'data': hash
         }
-        for meta in source.ticket.listAttachments(ticket_id)
-    }
+    return ret
 
 
-def ticket_get_all(source, attachments=True):
+def ticket_get_all(source, attachments_path, attachments=True):
     LOG.debug('ticket_get_all')
     return {
         ticket_id: {
             'attributes': ticket_get_attributes(source, ticket_id),
             'changelog': ticket_get_changelog(source, ticket_id),
-            'attachments': ticket_get_attachments(source, ticket_id) if attachments else {},
+            'attachments': ticket_get_attachments(source, ticket_id, attachments_path) if attachments else {},
         }
         for ticket_id in source.ticket.query("max=0&order=id")
     }
@@ -125,18 +145,18 @@ def wiki_get_all_pages(source, authors_blacklist=None, contents=True, attachment
     if attachments:
         for pagename, pagedict in six.iteritems(pages):
             LOG.debug('wiki_get_all_pages is retrieving attachments for wiki page %s', pagename)
-            pagedict['attachments'] = {
-                filename: _safe_retrieve_data(source.wiki.getAttachment(filename).data)
-                for filename in source.wiki.listAttachments(pagename)
-            }
+            pagedict['attachments'] = {} #{
+            #    filename: _safe_retrieve_data(source.wiki.getAttachment(filename).data)
+            #    for filename in source.wiki.listAttachments(pagename)
+            #}
     return pages
 
 
-def project_get(source, collect_authors=True):
+def project_get(source, attachments_path=None, collect_authors=True):
     LOG.debug('project_get')
     project = {
         'wiki': wiki_get_all_pages(source),
-        'tickets': ticket_get_all(source),
+        'tickets': ticket_get_all(source, attachments_path),
         'milestones': milestone_get_all(source),
         'authors': [],
     }
