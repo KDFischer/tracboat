@@ -20,7 +20,7 @@ import codecs
 import six
 
 
-def convert(text, base_path, multilines=True):
+def convert(text, base_path, multilines=True, gitlab_ref='_todo_'):
     text = re.sub('\r\n', '\n', text)
     text = re.sub(r'{{{(.*?)}}}', r'`\1`', text)
     text = re.sub(r'(?sm){{{(\n?#![^\n]+)?\n(.*?)\n}}}', r'```\n\2\n```', text)
@@ -75,14 +75,14 @@ def convert(text, base_path, multilines=True):
         d = m.groupdict()
         d.update({
             'base_path': os.path.relpath('/tree/master/', base_path),
-            'upload_path' : '/uploads/migrated/%s' % path,
+            'upload_path' : '/uploads/%s/%s' % (gitlab_ref, path),
         })
 
         if module == 'source':
             return '![](%(base_path)s/%(path)s)' % d
         elif module == 'wiki':
             id, file = path.split(':', 2)
-            d['upload_path'] = '/uploads/migrated/%s' % file
+            d['upload_path'] = '/uploads/%s/%s' % (gitlab_ref, file)
             d['file'] = file
             return '![%(file)s](%(upload_path)s)' % d
         else:

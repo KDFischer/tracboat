@@ -1865,15 +1865,15 @@ class UntrackedFilesForUploads(BaseModel):
         db_table = 'untracked_files_for_uploads'
 
 class Uploads(BaseModel):
-    checksum = CharField(index=True, null=True)
-    created_at = DateTimeField()
-    model = IntegerField(db_column='model_id', null=True)
-    model_type = CharField(null=True)
-    mount_point = CharField(null=True)
-    path = CharField()
-    secret = CharField(null=True)
-    size = BigIntegerField()
-    uploader = CharField()
+    checksum = CharField(index=True, null=True)             # md5
+    created_at = DateTimeField()                            # date
+    model = IntegerField(db_column='model_id', null=True)   # project
+    model_type = CharField(null=True)                       # Project
+    mount_point = CharField(null=True)                      # Null
+    path = CharField()                                      # without / from uploads
+    secret = CharField(null=True)                           # hash
+    size = BigIntegerField()                                # size
+    uploader = CharField()                                  # FileUploader
 
     class Meta:
         db_table = 'uploads'

@@ -5,6 +5,7 @@ import os
 import random
 import re
 import string
+from os import path
 from itertools import chain
 
 import six
@@ -35,7 +36,7 @@ TICKET_STATE_TO_ISSUE_STATE = {
     'new': 'opened',
     'assigned': 'opened',
     'accepted': 'opened',
-    'reopened': 'reopened',
+    'reopened': 'opened',
     'closed': 'closed',
 }
 
@@ -62,8 +63,8 @@ def _wikifix(text):
     return text
 
 
-def _wikiconvert(text, basepath, multiline=True):
-    return trac2down.convert(_wikifix(text), basepath, multiline)
+def _wikiconvert(text, basepath, multiline=True, gitlab_ref="_todo_"):
+    return trac2down.convert(_wikifix(text), basepath, multiline, gitlab_ref)
 
 
 ################################################################################
@@ -84,8 +85,8 @@ def gitlab_resolution_label(resolution, resolution_to_label=None):
     if resolution in resolution_to_label:
         return resolution_to_label[resolution]
     else:
-        # todo find a meaningful default value for unknown resolutions
-        raise ValueError('no label for {} resolution'.format(resolution))
+        # meaningful default value for unknown resolutions
+        return "closed:fixed"
 
 
 def ticket_resolution(ticket, resolution_to_label=None):
@@ -98,7 +99,11 @@ def ticket_resolution(ticket, resolution_to_label=None):
 
 
 def ticket_version(ticket):
-    version = ticket['attributes']['version']
+    try:
+        version = ticket['attributes']['version']
+    except KeyError:
+        return set()
+
     if version:
         return {'ver:{}'.format(version)}
     else:
@@ -109,6 +114,28 @@ def ticket_components(ticket):
     components = ticket['attributes']['component'].split(',')
     return {'comp:{}'.format(comp.strip()) for comp in components}
 
+def ticket_note_labels(ticket):
+    labels = set()
+
+    for change in ticket['changelog']:
+        if not change['field'] in ['resolution', 'status']:
+            continue
+
+        if change['field'] == 'resolution':
+            if change['newvalue'] == '':
+                label = gitlab_resolution_label(change['oldvalue'])
+                labels.add(label)
+            else:
+                label = gitlab_resolution_label(change['newvalue'])
+                labels.add(label)
+
+        if change['field'] == 'status':
+            label = gitlab_status_label(change['oldvalue'])
+            labels.add(label)
+            label = gitlab_status_label(change['newvalue'])
+            labels.add(label)
+
+    return labels
 
 def ticket_type(ticket):
     ttype = ticket['attributes']['type']
@@ -120,8 +147,8 @@ def gitlab_status_label(status, status_to_state=None):
     if status in status_to_state:
         return status_to_state[status]
     else:
-        # todo find a meaningful default value for unknown statuses
-        raise ValueError('no label for {} status'.format(status))
+        # meaningful default value for unknown statuses
+        return "opened"
 
 
 def ticket_state(ticket, status_to_state=None):
@@ -130,7 +157,7 @@ def ticket_state(ticket, status_to_state=None):
     if state in status_to_state:
         return status_to_state[state], set()
     else:
-        return None, {'state:{}'.format(state)}
+        return "opened", set()
 
 
 ################################################################################
@@ -168,22 +195,42 @@ def change_kwargs(change):
         # 'project'
     }
 
+ticket_iid=0
 
-def ticket_kwargs(ticket):
+def ticket_kwargs(ticket, ticket_iid, attachments_path):
     priority_labels = ticket_priority(ticket)
     resolution_labels = ticket_resolution(ticket)
     version_labels = ticket_version(ticket)
     component_labels = ticket_components(ticket)
     type_labels = ticket_type(ticket)
     state, state_labels = ticket_state(ticket)
+    #global ticket_iid
+    #ticket_iid = ticket_iid+1
+    note_labels = ticket_note_labels(ticket)
 
     labels = priority_labels | resolution_labels | version_labels | \
-        component_labels | type_labels | state_labels
+        component_labels | type_labels | state_labels | note_labels
+
+    gitlab_ref = 'issue_'+str(ticket_iid)
+    desc = _wikiconvert(ticket['attributes']['description'],
+                                    '/issues/', multiline=False, gitlab_ref=gitlab_ref)
+
+    desc += "\n\n"
+    uploads = {}
+    for file_id in ticket['attachments']:
+        info = ticket['attachments'][file_id]
+        name = info['attributes']['filename']
+        hash = info['data']
+        with open(path.join(attachments_path, hash), 'r') as f:
+            data = f.read()
+            info['data'] = data
+            f.close()
+        uploads[hash] = info
+        desc += '* [%s](/uploads/issue_%s/%s)\n' % (name, ticket_iid, name)
 
     return {
         'title': ticket['attributes']['summary'],
-        'description': _wikiconvert(ticket['attributes']['description'],
-                                    '/issues/', multiline=False),
+        'description': desc,
         'state': state,
         'labels': ','.join(labels),
         'created_at': ticket['attributes']['time'],
@@ -193,11 +240,15 @@ def ticket_kwargs(ticket):
         'author': ticket['attributes']['reporter'],
         'milestone': ticket['attributes']['milestone'],
         # 'project': None,
-        # 'iid': None,
+        'iid': ticket_iid,
+        'uploads': uploads,
     }
 
+milestone_iid=0
 
 def milestone_kwargs(milestone):
+    global milestone_iid
+    milestone_iid = milestone_iid+1
 
     return {
         'description': _wikiconvert(milestone['description'], '/milestones/', multiline=False),
@@ -206,6 +257,7 @@ def milestone_kwargs(milestone):
         'due_date': milestone['due'] if milestone['due'] else None,
         # References:
         # 'project': None,
+        'iid': milestone_iid,
     }
 
 
@@ -213,12 +265,13 @@ def milestone_kwargs(milestone):
 # Conversion API
 ################################################################################
 
-def migrate_tickets(trac_tickets, gitlab, default_user, usermap=None):
+def migrate_tickets(trac_tickets, gitlab, default_user, usermap, attachments_path, gitlab_project_name):
     for ticket_id, ticket in six.iteritems(trac_tickets):
-        issue_args = ticket_kwargs(ticket)
+        issue_args = ticket_kwargs(ticket, ticket_id, attachments_path)
         # Fix user mapping
         issue_args['author'] = usermap.get(issue_args['author'], default_user)
         issue_args['assignee'] = usermap.get(issue_args['assignee'], default_user)
+        issue_args['gitlab_project_name'] = gitlab_project_name
         # Create
         gitlab_issue_id = gitlab.create_issue(**issue_args)
         LOG.debug('migrated ticket %s -> %s', ticket_id, gitlab_issue_id)
@@ -236,6 +289,8 @@ def migrate_tickets(trac_tickets, gitlab, default_user, usermap=None):
                     # TODO changelog binary attachments
                     issue_id=gitlab_issue_id, binary_attachment=None, **note_args)
                 LOG.debug('migrated ticket #%s change -> %s', ticket_id, gitlab_note_id)
+        #if ticket_id=="2318":
+        #    break
 
 
 def migrate_milestones(trac_milestones, gitlab):
@@ -290,6 +345,7 @@ def create_user(gitlab, email, attributes=None):
     attributes = attributes or {}
     attrs = {  # set mandatory values to defaults
         'email': email,
+        'name': email,
         'username': email.split('@')[0],
         'encrypted_password': generate_password(),
     }
@@ -299,7 +355,7 @@ def create_user(gitlab, email, attributes=None):
 
 # pylint: disable=too-many-arguments
 def migrate(trac, gitlab_project_name, gitlab_version, gitlab_db_connector,
-            output_wiki_path, output_uploads_path, gitlab_fallback_user,
+            output_wiki_path, attachments_path, output_uploads_path, gitlab_fallback_user,
             usermap=None, userattrs=None):
     LOG.info('migrating project %r to GitLab ver. %s', gitlab_project_name, gitlab_version)
     LOG.info('uploads repository path is: %r', output_uploads_path)
@@ -327,6 +383,6 @@ def migrate(trac, gitlab_project_name, gitlab_version, gitlab_db_connector,
     migrate_milestones(trac['milestones'], gitlab)
     # 3. Issues
     LOG.info('migrating %d tickets to issues', len(trac['tickets']))
-    migrate_tickets(trac['tickets'], gitlab, gitlab_fallback_user, usermap)
+    migrate_tickets(trac['tickets'], gitlab, gitlab_fallback_user, usermap, attachments_path, gitlab_project_name)
     # Farewell
     LOG.info('done migration of project %r to GitLab ver. %s', gitlab_project_name, gitlab_version)
