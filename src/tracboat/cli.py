@@ -153,7 +153,7 @@ def GITLAB_OPTIONS(func):  # pylint: disable=invalid-name
     @click.option(
         '--gitlab-uploads-path',
         type=click.Path(),
-        default='/var/opt/gitlab/gitlab-rails/uploads',
+        default='/srv/gitlab/data/gitlab-rails/uploads',
         show_default=True,
         help='GitLab uploads storage directory path',
     )
@@ -426,6 +426,7 @@ def migrate(ctx, umap, umap_file, fallback_user, trac_uri, ssl_verify,
         gitlab_version=gitlab_version,
         gitlab_db_connector=db_connector,
         output_wiki_path=wiki_path,
+        attachments_path=attachments_path,
         output_uploads_path=gitlab_uploads_path,
         gitlab_fallback_user=fallback_user,
         usermap=usermap,
