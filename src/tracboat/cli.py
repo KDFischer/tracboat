@@ -257,14 +257,22 @@ def users(ctx, trac_uri, ssl_verify, from_export_file):
     type=click.Path(writable=True),
     help='Output file. If not specified, result will be written to stdout.'
 )
+@click.option(
+    '--attachments-path',
+    type=click.Path(),
+    default='attachments.export',
+    show_default=True,
+    help='Destination path for the exported attachments.',
+)
 @click.pass_context
-def export(ctx, trac_uri, ssl_verify, format, out_file):  # pylint: disable=redefined-builtin
+def export(ctx, trac_uri, ssl_verify, format, out_file, attachments_path):  # pylint: disable=redefined-builtin
     """export a complete Trac instance"""
     LOG = logging.getLogger(ctx.info_name)
-    #
+    attachments_path = path.abspath(attachments_path)
+    _mkdir_p(attachments_path)
     LOG.info('crawling Trac instance: %s', _sanitize_url(trac_uri))
     source = trac.connect(trac_uri, encoding='UTF-8', use_datetime=True, ssl_verify=ssl_verify)
-    project = trac.project_get(source, collect_authors=True)
+    project = trac.project_get(source, collect_authors=True, attachments_path=attachments_path)
     project = _dumps(project, fmt=format)
     if out_file:
         LOG.info('writing export to %s', out_file)
@@ -302,6 +310,13 @@ def export(ctx, trac_uri, ssl_verify, format, out_file):  # pylint: disable=rede
     help='Destination path for the exported wiki tree.',
 )
 @click.option(
+    '--attachments-path',
+    type=click.Path(),
+    default='attachments.export',
+    show_default=True,
+    help='Destination path for the exported attachments.',
+)
+@click.option(
     '--from-export-file',
     type=click.Path(exists=True, readable=True),
     help="Don't retrieve Trac project from an instance, read it from a "
@@ -330,7 +345,7 @@ def export(ctx, trac_uri, ssl_verify, format, out_file):  # pylint: disable=rede
 @click.pass_context
 def migrate(ctx, umap, umap_file, fallback_user, trac_uri, ssl_verify,
             gitlab_project_name, gitlab_db_user, gitlab_db_password, gitlab_db_name,
-            gitlab_db_path, gitlab_uploads_path, gitlab_version, wiki_path,
+            gitlab_db_path, gitlab_uploads_path, gitlab_version, wiki_path, attachments_path, 
             from_export_file, mock, mock_path):
     """migrate a Trac instance"""
     LOG = logging.getLogger(ctx.info_name)
