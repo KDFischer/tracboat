@@ -3,18 +3,19 @@
 import logging
 import ssl
 import hashlib
-from os import path
+import base64
 
 import six
 from six.moves import xmlrpc_client as xmlrpc
+from os import path
 
 LOG = logging.getLogger(__name__)
 
 
 def _safe_retrieve_data(data, encoding='base64'):
     try:
-        # six.b(data.decode(encoding))
-        return six.b(data)
+        #return six.b(data)
+        return base64.b64encode(bytes(data))
     except Exception as err:  # pylint: disable=broad-except
         LOG.exception('error while decoding data from %s', encoding)
         return str(err)
@@ -76,13 +77,15 @@ def ticket_get_attachments(source, ticket_id, attachments_path):
         try:
             data = _safe_retrieve_data(source.ticket.getAttachment(ticket_id, meta[0]).data)
         except:
-            try:
-                data = _safe_retrieve_data(source.ticket.getAttachment(ticket_id, meta[0]).data)
-            except:
-                data = ''
+            data = ''
         hash = hashlib.md5(data).hexdigest()
-        with open(path.join(attachments_path, hash), 'w') as f:
-            f.write(data)
+        LOG.debug('hash = %s', hash)
+        with open(path.join(attachments_path, hash), 'wb') as f:
+            LOG.debug('Writing attachment of ticket {} to file {}.'.format(ticket_id, path.join(attachments_path, hash)))
+            try:
+                f.write(base64.b64decode(data).decode('utf-8'))
+            except (UnicodeDecodeError, TypeError):
+                f.write(base64.b64decode(data))
             f.close()
         ret[meta[0]] =  {
             'attributes': {
@@ -178,7 +181,7 @@ def project_get(source, attachments_path=None, collect_authors=True):
 
 def authors_get(source, from_wiki=True, from_tickets=True):
     wiki = wiki_get_all_pages(source, contents=False, attachments=False) if from_wiki else None
-    tickets = ticket_get_all(source, attachments=False) if from_tickets else None
+    tickets = ticket_get_all(source, '', attachments=False) if from_tickets else None
     return _authors_collect(wiki=wiki, tickets=tickets)
 
 

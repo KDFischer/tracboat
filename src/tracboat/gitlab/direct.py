@@ -333,7 +333,6 @@ class Connection(ConnectionBase):
 
         # 5. Attachments
         for hash in kwargs['uploads']:
-            print hash
             info = kwargs['uploads'][hash]
             directory = os.path.join(self.uploads_path, '%s/issue_%s' % (kwargs['gitlab_project_name'], kwargs['iid']))
             if not os.path.exists(directory):
