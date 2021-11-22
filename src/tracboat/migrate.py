@@ -21,20 +21,132 @@ __all__ = ['migrate']
 LOG = logging.getLogger(__name__)
 
 STATUS_AS_LABEL = False
+TICKET_PRIORITY_TO_ISSUE_LABEL = {
+    'high': 'prio:high',
+    # 'medium': None,
+    'low': 'prio:low',
+}
+
+TICKET_RESOLUTION_TO_ISSUE_LABEL = {
+    'fixed': 'closed:fixed',
+    'invalid': 'closed:invalid',
+    'wontfix': 'closed:wontfix',
+    'duplicate': 'closed:duplicate',
+    'worksforme': 'closed:worksforme',
+}
+
+TICKET_STATE_TO_ISSUE_STATE = {
+    'new': 'opened',
+    'assigned': 'opened',
+    'accepted': 'opened',
+    'reopened': 'opened',
+    'closed': 'closed',
+}
+
+ticket_iid=0
+milestone_iid=0
+
+################################################################################
+# Wiki format normalization
+################################################################################
+
+CHANGESET_REX = re.compile(
+    r'(?sm)In \[changeset:"([^"/]+?)(?:/[^"]+)?"\]:\n\{\{\{(\n#![^\n]+)?\n(.*?)\n\}\}\}'
+)
+
+CHANGESET2_REX = re.compile(
+    r'\[changeset:([a-zA-Z0-9]+)\]'
+)
+
 
 def _format_changeset_comment(rex):
     return 'In changeset ' + rex.group(1) + ':\n> ' + rex.group(3).replace('\n', '\n> ')
 
-def _wikiconvert(text, basepath, multiline=True, note_map={}, attachments_path=None, svn2git_revisions={}):
-    return trac2down.convert(text, basepath, multiline, note_map=note_map, attachments_path=attachments_path, svn2git_revisions=svn2git_revisions)
+def _wikiconvert(text, basepath, multiline=True, note_map={}, attachments_path=None, svn2git_revisions={}, gitlab_ref="_todo_"):
+    return trac2down.convert(_wikifix(text), basepath, multiline, gitlab_ref, note_map=note_map, attachments_path=attachments_path, svn2git_revisions=svn2git_revisions)
 
+def _wikifix(text):
+    text = CHANGESET_REX.sub(_format_changeset_comment, text)
+    text = CHANGESET2_REX.sub(r'\1', text)
+    return text
 
 ################################################################################
 # Trac ticket metadata conversion
 ################################################################################
 
+def ticket_priority(ticket, priority_to_label=None):
+    priority_to_label = priority_to_label or TICKET_PRIORITY_TO_ISSUE_LABEL
+    priority = ticket['attributes']['priority']
+    if priority in priority_to_label:
+        return {priority_to_label[priority]}
+    else:
+        return set()
+
+def ticket_resolution(ticket, resolution_to_label=None):
+    resolution_to_label = resolution_to_label or TICKET_RESOLUTION_TO_ISSUE_LABEL
+    resolution = ticket['attributes']['resolution']
+    if resolution in resolution_to_label:
+        return {resolution_to_label[resolution]}
+    else:
+        return set()
+
+def ticket_version(ticket):
+    try:
+        version = ticket['attributes']['version']
+    except KeyError:
+        return set()
+
+    if version:
+        return {'ver:{}'.format(version)}
+    else:
+        return set()
+
+def ticket_components(ticket):
+    components = ticket['attributes']['component'].split(',')
+    return {'comp:{}'.format(comp.strip()) for comp in components}
+
+def ticket_note_labels(ticket):
+    labels = set()
+
+    for change in ticket['changelog']:
+        if not change['field'] in ['resolution', 'status']:
+            continue
+
+        if change['field'] == 'resolution':
+            if change['newvalue'] == '':
+                label = gitlab_resolution_label(change['oldvalue'])
+                labels.add(label)
+            else:
+                label = gitlab_resolution_label(change['newvalue'])
+                labels.add(label)
+
+        if change['field'] == 'status':
+            label = gitlab_status_label(change['oldvalue'])
+            labels.add(label)
+            label = gitlab_status_label(change['newvalue'])
+            labels.add(label)
+
+    return labels
+
+def ticket_type(ticket):
+    ttype = ticket['attributes']['type']
+    return {'type:{}'.format(ttype.strip())}
+
+def gitlab_resolution_label(resolution, resolution_to_label=None):
+    resolution_to_label = resolution_to_label or TICKET_RESOLUTION_TO_ISSUE_LABEL
+    if resolution in resolution_to_label:
+        return resolution_to_label[resolution]
+    else:
+        # meaningful default value for unknown resolutions
+        return "closed:fixed"
+
 def gitlab_status_label(status, status_to_state=None):
-    return LabelStatus.convert_value(status)
+    status_to_state = status_to_state or TICKET_STATE_TO_ISSUE_STATE
+    if status in status_to_state:
+        return status_to_state[status]
+    else:
+        # meaningful default value for unknown statuses
+        return "opened"
 
 # https://stackoverflow.com/a/21790513
 # https://stackoverflow.com/a/22043027
@@ -95,6 +207,7 @@ def format_fieldchange(field_name, change, value_converter=identity_converter, f
 timetracking_re = re.compile(r"""
     \[/hours/(?P<ticket>\d+)\t(?P<hours>[\d.]+)\thours\]\tlogged\tfor\t(?P<login>\S+):\t''(?P<message>.+)''
 """, re.X)
+
 def timetracking_update(text, usermanager):
     """
     u'[/hours/59\t2.2\thours]\tlogged\tfor\tsome-user:\t_some\tmessage\there_',
@@ -124,7 +237,8 @@ def format_change_note(change, issue_id=None, note_map={}, svn2git_revisions={},
     field = change['field']
 
     if field == 'comment':
-        note = _wikiconvert(change['newvalue'], '/issues/', multiline=False, note_map=note_map, attachments_path=attachments_path, svn2git_revisions=svn2git_revisions)
+        note = _wikiconvert(change['newvalue'], '/issues/', multiline=False, note_map=note_map,
+                            attachments_path=attachments_path, svn2git_revisions=svn2git_revisions)
     elif field == 'resolution':
         note = format_fieldchange('Resolution', change, format_converter=format_label)
     elif field == 'priority':
@@ -202,16 +316,42 @@ def change_comment_kwargs(change, note):
         # 'project'
     }
 
-def ticket_kwargs(ticket_id, ticket, svn2git_revisions={}):
+def ticket_kwargs(ticket, ticket_iid, attachments_path, svn2git_revisions={}):
+    priority_labels = ticket_priority(ticket)
+    resolution_labels = ticket_resolution(ticket)
+    version_labels = ticket_version(ticket)
+    component_labels = ticket_components(ticket)
+    type_labels = ticket_type(ticket)
+    state, state_labels = ticket_state(ticket)
+    #global ticket_iid
+    #ticket_iid = ticket_iid+1
+    note_labels = ticket_note_labels(ticket)
 
-    description = _wikiconvert(ticket['attributes']['description'], '/issues/', multiline=False,
-        attachments_path='/uploads/issue_%s' % ticket_id,
-        svn2git_revisions=svn2git_revisions
-    )
+    labels = priority_labels | resolution_labels | version_labels | \
+        component_labels | type_labels | state_labels | note_labels
+
+    gitlab_ref = 'issue_'+str(ticket_iid)
+    desc = _wikiconvert(ticket['attributes']['description'],
+                                    '/issues/', multiline=False, svn2git_revisions=svn2git_revisions, gitlab_ref=gitlab_ref)
+
+    desc += "\n\n"
+    uploads = {}
+    for file_id in ticket['attachments']:
+        info = ticket['attachments'][file_id]
+        name = info['attributes']['filename']
+        hash = info['data']
+        with open(os.path.join(attachments_path, hash), 'r') as f:
+            data = f.read()
+            info['data'] = data
+            f.close()
+        uploads[hash] = info
+        desc += '* [%s](/uploads/issue_%s/%s)\n' % (name, ticket_iid, name)
 
     return {
         'title': ticket['attributes']['summary'],
-        'description': description,
+        'description': desc,
+        'state': state,
+        'labels': ','.join(labels),
         'created_at': ticket['attributes']['time'],
         'updated_at': ticket['attributes']['changetime'],
         # References:
@@ -219,11 +359,13 @@ def ticket_kwargs(ticket_id, ticket, svn2git_revisions={}):
         'author': ticket['attributes']['reporter'],
         'milestone': ticket['attributes']['milestone'],
         # 'project': None,
-        # 'iid': None,
+        'iid': ticket_iid,
+        'uploads': uploads,
     }
 
-
 def milestone_kwargs(milestone):
+    global milestone_iid
+    milestone_iid = milestone_iid+1
 
     return {
         'description': _wikiconvert(milestone['description'], '/milestones/', multiline=False),
@@ -234,6 +376,7 @@ def milestone_kwargs(milestone):
         'due_date': milestone['due'] if milestone['due'] else None,
         # References:
         # 'project': None,
+        'iid': milestone_iid,
     }
 
 
@@ -336,6 +479,28 @@ def migrate_tickets(trac_tickets, gitlab, svn2git_revisions={}, labelmanager=Non
         LOG.info("TICKET: #%r: %r" % (ticket_id, ticket))
         LOG.info("ISSUE: %r" % issue_args)
 
+def migrate_tickets(trac_tickets, gitlab, default_user, usermap, attachments_path, gitlab_project_name, svn2git_revisions={}, labelmanager=None, usermanager=None):
+    LOG.info('MIGRATING %d tickets to issues', len(trac_tickets))
+    if len(trac_tickets) == 0:
+        return
+    for ticket_id, ticket in six.iteritems(trac_tickets):
+        LOG.info('migrate #%d: %r', ticket_id, ticket)
+        # trac note_id -> gitlab note_id
+        note_map = {}
+        trac_note_id = 1
+
+        issue_args = ticket_kwargs(ticket_id, ticket, svn2git_revisions=svn2git_revisions)
+        label_set = ticket['labels']
+        if STATUS_AS_LABEL:
+            issue_args['state'] = label_set.get_status_label().title
+        else:
+            issue_args['state'] = ticket_state(ticket)
+
+        issue_args['labels'] = ','.join(label_set.get_label_titles())
+        issue_args['author'] = usermanager.get_email(issue_args['author'])
+        issue_args['assignee'] = usermanager.get_email(issue_args['assignee'])
+        issue_args['gitlab_project_name'] = gitlab_project_name
+
         # Create
         gitlab_issue_id = gitlab.create_issue(**issue_args)
         LOG.info('migrated ticket %s -> %s', ticket_id, gitlab_issue_id)
@@ -373,9 +538,6 @@ def migrate_tickets(trac_tickets, gitlab, svn2git_revisions={}, labelmanager=Non
                 # skip field: type
                 LOG.info('skip field: %s', change['field'])
 
-        # process 1 ticket only
-#        return
-
 # for ticket comments to appear normally, we created all milestones as 'active'
 # now close the milestones that are 'closed'
 def close_milestones(trac_milestones, gitlab):
@@ -384,6 +546,7 @@ def close_milestones(trac_milestones, gitlab):
     for milestone in closed_milestones:
         milestone_id = gitlab.get_milestone_id(milestone['name'])
         gitlab.close_milestone(milestone_id)
+
 
 def migrate_milestones(trac_milestones, gitlab):
     LOG.info('migrating %d milestones', len(trac_milestones))
@@ -430,10 +593,25 @@ def migrate_wiki(trac_wiki, gitlab, output_dir):
         trac2down.save_file(converted_page, title, version, last_modified, author, output_dir)
         LOG.debug('migrated wiki page %s', title)
 
+# pylint: disable=too-many-arguments
+def generate_password(length=None):
+    alphabet = string.ascii_letters + string.digits + string.punctuation
+    return ''.join(random.choice(alphabet) for _ in range(length or 30))
+
+def create_user(gitlab, email, attributes=None):
+    attributes = attributes or {}
+    attrs = {  # set mandatory values to defaults
+        'email': email,
+        'name': email,
+        'username': email.split('@')[0],
+        'encrypted_password': generate_password(),
+    }
+    attrs.update(attributes)
+    gitlab.create_user(**attrs)
 
 # pylint: disable=too-many-arguments
 def migrate(trac, gitlab_project_name, gitlab_version, gitlab_db_connector,
-            output_wiki_path, output_uploads_path, gitlab_fallback_user,
+            output_wiki_path, attachments_path, output_uploads_path, gitlab_fallback_user,
             usermap=None, userattrs=None, svn2git_revisions={}):
     LOG.info('migrating project %r to GitLab ver. %s', gitlab_project_name, gitlab_version)
     LOG.info('uploads repository path is: %r', output_uploads_path)
@@ -455,18 +633,21 @@ def migrate(trac, gitlab_project_name, gitlab_version, gitlab_db_connector,
 #    gitlab.clear_labels()
 
     # 1. Wiki
-#    LOG.info('migrating %d wiki pages to: %s', len(trac['wiki']), output_wiki_path)
-#    migrate_wiki(trac['wiki'], gitlab, output_wiki_path)
+    LOG.info('migrating %d wiki pages to: %s', len(trac['wiki']), output_wiki_path)
+    migrate_wiki(trac['wiki'], gitlab, output_wiki_path)
+
     # 2. Milestones
     migrate_milestones(trac['milestones'], gitlab)
+    close_milestones(trac['milestones'], gitlab)
 
     # create labels
     labelmanager = LabelManager(gitlab, LOG)
     labelmanager.create_labels(trac['tickets'])
 
     # 3. Issues
-    migrate_tickets(trac['tickets'], gitlab, svn2git_revisions=svn2git_revisions, labelmanager=labelmanager, usermanager=usermanager)
-    # - gitlab bug?
-    close_milestones(trac['milestones'], gitlab)
+    LOG.info('migrating %d tickets to issues', len(trac['tickets']))
+    migrate_tickets(trac['tickets'], gitlab, gitlab_fallback_user, usermap, attachments_path, gitlab_project_name,
+                        svn2git_revisions=svn2git_revisions, labelmanager=labelmanager, usermanager=usermanager)
+
     # Farewell
     LOG.info('done migration of project %r to GitLab ver. %s', gitlab_project_name, gitlab_version)
