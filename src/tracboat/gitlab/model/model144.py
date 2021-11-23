@@ -9,14 +9,13 @@
 from peewee import *
 from playhouse.postgres_ext import *
 
-database = PostgresqlDatabase('gitlabhq_production', **{'host': '/var/opt/gitlab/postgresql', 'port': 5432, 'user': 'gitlab-psql'})
-
+database_proxy = Proxy()
 class UnknownField(object):
-    def __init__(self, *_, **__): pass
+    pass
 
 class BaseModel(Model):
     class Meta:
-        database = database
+        database = database_proxy
 
 class AbuseReports(BaseModel):
     cached_markdown_version = IntegerField(null=True)

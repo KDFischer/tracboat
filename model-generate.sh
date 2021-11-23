@@ -1,34 +1,32 @@
 #!/bin/sh
 set -xe
 
-./env.sh
-
 package='gitlab-ce'
 version=$(dpkg-query -f '${Version}\n' -W "$package")
 ver=$(echo "$version" | cut -d. -f1,2 | tr -d .)
+user="$USER"
 
 model=src/tracboat/gitlab/model/model$ver.py
-sudo -H -u git VENV/bin/pwiz.py -u gitlab --engine=postgresql --host=/var/opt/gitlab/postgresql gitlabhq_production > $model
+sudo -H -u gitlab-psql /usr/bin/env ~${user}/.conda/envs/tracboat/bin/pwiz.py -u gitlab-psql --engine=postgresql --host=/var/opt/gitlab/postgresql gitlabhq_production > $model
 
-patch -R $model <<EOF
---- src/tracboat/gitlab/model/model104.py	2018-01-02 20:52:44.144989068 +0200
-+++ src/tracboat/gitlab/model/model104.py	2018-02-07 13:29:43.314348521 +0200
-@@ -1,15 +1,13 @@
--# -*- coding: utf-8 -*-
--
+patch $model <<EOF
+--- a/src/tracboat/gitlab/model/model144.py
++++ b/src/tracboat/gitlab/model/model144.py
+@@ -9,14 +9,13 @@
  from peewee import *
+ from playhouse.postgres_ext import *
  
--database_proxy = Proxy()
-+database = PostgresqlDatabase('gitlabhq_production', **{'host': '/var/opt/gitlab/postgresql', 'user': 'gitlab'})
- 
+-database = PostgresqlDatabase('gitlabhq_production', **{'host': '/var/opt/gitlab/postgresql', 'port': 5432, 'user': 'gitlab-psql'})
+-
++database_proxy = Proxy()
  class UnknownField(object):
--    pass
-+    def __init__(self, *_, **__): pass
+-    def __init__(self, *_, **__): pass
++    pass
  
  class BaseModel(Model):
      class Meta:
--        database = database_proxy
-+        database = database
+-        database = database
++        database = database_proxy
  
  class AbuseReports(BaseModel):
      cached_markdown_version = IntegerField(null=True)
