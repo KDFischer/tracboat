@@ -13,21 +13,25 @@ database_proxy = Proxy()
 class UnknownField(object):
     pass
 
+# Create a reference object to stand in for our as-yet-undefined Tweet model.
+DeferredNamespaces = DeferredRelation()
+DeferredProjects = DeferredRelation()
+#DeferredMergeRequests = DeferredRelation()
 class BaseModel(Model):
     class Meta:
         database = database_proxy
 
-class AbuseReports(BaseModel):
-    cached_markdown_version = IntegerField(null=True)
-    created_at = DateTimeField(null=True)
-    message = TextField(null=True)
-    message_html = TextField(null=True)
-    reporter = IntegerField(db_column='reporter_id', null=True)
-    updated_at = DateTimeField(null=True)
-    user = IntegerField(db_column='user_id', index=True, null=True)
+# class AbuseReports(BaseModel):
+#     cached_markdown_version = IntegerField(null=True)
+#     created_at = DateTimeField(null=True)
+#     message = TextField(null=True)
+#     message_html = TextField(null=True)
+#     reporter = IntegerField(db_column='reporter_id', null=True)
+#     updated_at = DateTimeField(null=True)
+#     user = IntegerField(db_column='user_id', index=True, null=True)
 
-    class Meta:
-        db_table = 'abuse_reports'
+#     class Meta:
+#         db_table = 'abuse_reports'
 
 class ApplicationSettingTerms(BaseModel):
     cached_markdown_version = IntegerField(null=True)
@@ -85,7 +89,7 @@ class Users(BaseModel):
     linkedin = CharField()
     location = CharField(null=True)
     locked_at = DateTimeField(null=True)
-    managing_group = ForeignKeyField(db_column='managing_group_id', null=True, rel_model=Namespaces, to_field='id')
+    managing_group = ForeignKeyField(db_column='managing_group_id', null=True, rel_model=DeferredNamespaces, to_field='id')
     name = CharField(index=True, null=True)
     note = TextField(null=True)
     notification_email = CharField(null=True)
@@ -139,7 +143,7 @@ class PoolRepositories(BaseModel):
     disk_path = CharField(null=True, unique=True)
     id = BigIntegerField(primary_key=True)
     shard = ForeignKeyField(db_column='shard_id', rel_model=Shards, to_field='id')
-    source_project = ForeignKeyField(db_column='source_project_id', null=True, rel_model=Projects, to_field='id')
+    source_project = ForeignKeyField(db_column='source_project_id', null=True, rel_model=DeferredProjects, to_field='id')
     state = CharField(null=True)
 
     class Meta:
@@ -200,7 +204,7 @@ class Projects(BaseModel):
     mirror_trigger_builds = BooleanField()
     mirror_user = IntegerField(db_column='mirror_user_id', index=True, null=True)
     name = CharField(index=True, null=True)
-    namespace = ForeignKeyField(db_column='namespace_id', rel_model=Namespaces, to_field='id')
+    namespace = ForeignKeyField(db_column='namespace_id', rel_model=DeferredNamespaces, to_field='id')
     only_allow_merge_if_all_discussions_are_resolved = BooleanField(null=True)
     only_allow_merge_if_pipeline_succeeds = BooleanField()
     only_mirror_protected_branches = BooleanField(null=True)
@@ -210,7 +214,7 @@ class Projects(BaseModel):
     pending_delete = BooleanField(index=True, null=True)
     pool_repository = ForeignKeyField(db_column='pool_repository_id', null=True, rel_model=PoolRepositories, to_field='id')
     printing_merge_request_link_enabled = BooleanField()
-    project_namespace = ForeignKeyField(db_column='project_namespace_id', null=True, rel_model=Namespaces, related_name='namespaces_project_namespace_set', to_field='id', unique=True)
+    project_namespace = ForeignKeyField(db_column='project_namespace_id', null=True, rel_model=DeferredNamespaces, related_name='namespaces_project_namespace_set', to_field='id', unique=True)
     public_builds = BooleanField()
     pull_mirror_available_overridden = BooleanField(null=True)
     pull_mirror_branch_prefix = CharField(null=True)
@@ -332,7 +336,7 @@ class Namespaces(BaseModel):
     shared_runners_enabled = BooleanField()
     shared_runners_minutes_limit = IntegerField(null=True)
     subgroup_creation_level = IntegerField(null=True)
-    traversal_ids = UnknownField(index=True)  # ARRAY
+    #traversal_ids = UnknownField(index=True)  # ARRAY
     two_factor_grace_period = IntegerField()
     type = CharField(null=True)
     unlock_membership_to_ldap = BooleanField(null=True)
@@ -470,46 +474,46 @@ class WorkItemTypes(BaseModel):
     class Meta:
         db_table = 'work_item_types'
 
-class Epics(BaseModel):
-    assignee = ForeignKeyField(db_column='assignee_id', null=True, rel_model=Users, to_field='id')
-    author = ForeignKeyField(db_column='author_id', rel_model=Users, related_name='users_author_set', to_field='id')
-    cached_markdown_version = IntegerField(null=True)
-    closed_at = DateTimeField(null=True)
-    closed_by = ForeignKeyField(db_column='closed_by_id', null=True, rel_model=Users, related_name='users_closed_by_set', to_field='id')
-    confidential = BooleanField(index=True)
-    created_at = DateTimeField()
-    description = TextField(null=True)
-    description_html = TextField(null=True)
-    due_date_fixed = DateField(null=True)
-    due_date_is_fixed = BooleanField(null=True)
-    due_date_sourcing_epic = ForeignKeyField(db_column='due_date_sourcing_epic_id', null=True, rel_model='self', to_field='id')
-    due_date_sourcing_milestone = ForeignKeyField(db_column='due_date_sourcing_milestone_id', null=True, rel_model=Milestones, to_field='id')
-    end_date = DateField(index=True, null=True)
-    external_key = CharField(null=True)
-    group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
-    iid = IntegerField(index=True)
-    last_edited_at = DateTimeField(null=True)
-    last_edited_by = IntegerField(db_column='last_edited_by_id', index=True, null=True)
-    lock_version = IntegerField(null=True)
-    parent = ForeignKeyField(db_column='parent_id', null=True, rel_model='self', related_name='epics_parent_set', to_field='id')
-    relative_position = IntegerField(null=True)
-    start_date = DateField(index=True, null=True)
-    start_date_fixed = DateField(null=True)
-    start_date_is_fixed = BooleanField(null=True)
-    start_date_sourcing_epic = ForeignKeyField(db_column='start_date_sourcing_epic_id', null=True, rel_model='self', related_name='epics_start_date_sourcing_epic_set', to_field='id')
-    start_date_sourcing_milestone = ForeignKeyField(db_column='start_date_sourcing_milestone_id', null=True, rel_model=Milestones, related_name='milestones_start_date_sourcing_milestone_set', to_field='id')
-    state = IntegerField(db_column='state_id')
-    title = CharField()
-    title_html = CharField()
-    updated_at = DateTimeField()
-    updated_by = IntegerField(db_column='updated_by_id', null=True)
+# class Epics(BaseModel):
+#     assignee = ForeignKeyField(db_column='assignee_id', null=True, rel_model=Users, to_field='id')
+#     author = ForeignKeyField(db_column='author_id', rel_model=Users, related_name='users_author_set', to_field='id')
+#     cached_markdown_version = IntegerField(null=True)
+#     closed_at = DateTimeField(null=True)
+#     closed_by = ForeignKeyField(db_column='closed_by_id', null=True, rel_model=Users, related_name='users_closed_by_set', to_field='id')
+#     confidential = BooleanField(index=True)
+#     created_at = DateTimeField()
+#     description = TextField(null=True)
+#     description_html = TextField(null=True)
+#     due_date_fixed = DateField(null=True)
+#     due_date_is_fixed = BooleanField(null=True)
+#     due_date_sourcing_epic = ForeignKeyField(db_column='due_date_sourcing_epic_id', null=True, rel_model='self', to_field='id')
+#     due_date_sourcing_milestone = ForeignKeyField(db_column='due_date_sourcing_milestone_id', null=True, rel_model=Milestones, to_field='id')
+#     end_date = DateField(index=True, null=True)
+#     external_key = CharField(null=True)
+#     group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
+#     iid = IntegerField(index=True)
+#     last_edited_at = DateTimeField(null=True)
+#     last_edited_by = IntegerField(db_column='last_edited_by_id', index=True, null=True)
+#     lock_version = IntegerField(null=True)
+#     parent = ForeignKeyField(db_column='parent_id', null=True, rel_model='self', related_name='epics_parent_set', to_field='id')
+#     relative_position = IntegerField(null=True)
+#     start_date = DateField(index=True, null=True)
+#     start_date_fixed = DateField(null=True)
+#     start_date_is_fixed = BooleanField(null=True)
+#     start_date_sourcing_epic = ForeignKeyField(db_column='start_date_sourcing_epic_id', null=True, rel_model='self', related_name='epics_start_date_sourcing_epic_set', to_field='id')
+#     start_date_sourcing_milestone = ForeignKeyField(db_column='start_date_sourcing_milestone_id', null=True, rel_model=Milestones, related_name='milestones_start_date_sourcing_milestone_set', to_field='id')
+#     state = IntegerField(db_column='state_id')
+#     title = CharField()
+#     title_html = CharField()
+#     updated_at = DateTimeField()
+#     updated_by = IntegerField(db_column='updated_by_id', null=True)
 
-    class Meta:
-        db_table = 'epics'
-        indexes = (
-            (('external_key', 'group'), True),
-            (('iid', 'group'), True),
-        )
+#     class Meta:
+#         db_table = 'epics'
+#         indexes = (
+#             (('external_key', 'group'), True),
+#             (('iid', 'group'), True),
+#         )
 
 class Issues(BaseModel):
     author = ForeignKeyField(db_column='author_id', null=True, rel_model=Users, to_field='id')
@@ -534,11 +538,11 @@ class Issues(BaseModel):
     milestone = ForeignKeyField(db_column='milestone_id', null=True, rel_model=Milestones, to_field='id')
     moved_to = ForeignKeyField(db_column='moved_to_id', null=True, rel_model='self', related_name='issues_moved_to_set', to_field='id')
     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    promoted_to_epic = ForeignKeyField(db_column='promoted_to_epic_id', null=True, rel_model=Epics, to_field='id')
+    #promoted_to_epic = ForeignKeyField(db_column='promoted_to_epic_id', null=True, rel_model=Epics, to_field='id')
     relative_position = IntegerField(null=True)
     service_desk_reply_to = CharField(null=True)
     sprint = ForeignKeyField(db_column='sprint_id', null=True, rel_model=Sprints, to_field='id')
-    state = IntegerField(db_column='state_id', index=True)
+    #state = IntegerField(db_column='state_id', index=True)
     time_estimate = IntegerField(null=True)
     title = CharField(index=True, null=True)
     title_html = TextField(null=True)
@@ -632,7 +636,7 @@ class AlertManagementAlerts(BaseModel):
     environment = ForeignKeyField(db_column='environment_id', null=True, rel_model=Environments, to_field='id')
     events = IntegerField()
     fingerprint = BlobField(null=True)
-    hosts = UnknownField()  # ARRAY
+    #hosts = UnknownField()  # ARRAY
     id = BigIntegerField(primary_key=True)
     iid = IntegerField()
     issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
@@ -666,28 +670,28 @@ class AlertManagementAlertAssignees(BaseModel):
         )
 
 # Possible reference cycle: merge_requests
-class MergeRequestDiffs(BaseModel):
-    base_commit_sha = CharField(null=True)
-    commits_count = IntegerField(null=True)
-    created_at = DateTimeField(null=True)
-    diff_type = IntegerField()
-    external_diff = CharField(null=True)
-    external_diff_store = IntegerField(index=True, null=True)
-    files_count = IntegerField(null=True)
-    head_commit_sha = CharField(null=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id', unique=True)
-    real_size = CharField(null=True)
-    sorted = BooleanField()
-    start_commit_sha = CharField(null=True)
-    state = CharField(null=True)
-    stored_externally = BooleanField(null=True)
-    updated_at = DateTimeField(null=True)
+# class MergeRequestDiffs(BaseModel):
+#     base_commit_sha = CharField(null=True)
+#     commits_count = IntegerField(null=True)
+#     created_at = DateTimeField(null=True)
+#     diff_type = IntegerField()
+#     external_diff = CharField(null=True)
+#     external_diff_store = IntegerField(index=True, null=True)
+#     files_count = IntegerField(null=True)
+#     head_commit_sha = CharField(null=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=DeferredMergeRequests, to_field='id', unique=True)
+#     real_size = CharField(null=True)
+#     sorted = BooleanField()
+#     start_commit_sha = CharField(null=True)
+#     state = CharField(null=True)
+#     stored_externally = BooleanField(null=True)
+#     updated_at = DateTimeField(null=True)
 
-    class Meta:
-        db_table = 'merge_request_diffs'
-        indexes = (
-            (('id', 'merge_request'), False),
-        )
+#     class Meta:
+#         db_table = 'merge_request_diffs'
+#         indexes = (
+#             (('id', 'merge_request'), False),
+#         )
 
 class ExternalPullRequests(BaseModel):
     created_at = DateTimeField()
@@ -709,24 +713,24 @@ class ExternalPullRequests(BaseModel):
             (('project', 'source_branch', 'target_branch'), True),
         )
 
-class CiPipelineSchedules(BaseModel):
-    active = BooleanField(null=True)
-    created_at = DateTimeField(null=True)
-    cron = CharField(null=True)
-    cron_timezone = CharField(null=True)
-    description = CharField(null=True)
-    next_run_at = DateTimeField(null=True)
-    owner = ForeignKeyField(db_column='owner_id', null=True, rel_model=Users, to_field='id')
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    ref = CharField(null=True)
-    updated_at = DateTimeField(null=True)
+# class CiPipelineSchedules(BaseModel):
+#     active = BooleanField(null=True)
+#     created_at = DateTimeField(null=True)
+#     cron = CharField(null=True)
+#     cron_timezone = CharField(null=True)
+#     description = CharField(null=True)
+#     next_run_at = DateTimeField(null=True)
+#     owner = ForeignKeyField(db_column='owner_id', null=True, rel_model=Users, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     ref = CharField(null=True)
+#     updated_at = DateTimeField(null=True)
 
-    class Meta:
-        db_table = 'ci_pipeline_schedules'
-        indexes = (
-            (('id', 'owner'), False),
-            (('next_run_at', 'active'), False),
-        )
+#     class Meta:
+#         db_table = 'ci_pipeline_schedules'
+#         indexes = (
+#             (('id', 'owner'), False),
+#             (('next_run_at', 'active'), False),
+#         )
 
 # Possible reference cycle: merge_requests
 class CiRefs(BaseModel):
@@ -742,132 +746,132 @@ class CiRefs(BaseModel):
             (('project', 'ref_path'), True),
         )
 
-class CiPipelines(BaseModel):
-    auto_canceled_by = ForeignKeyField(db_column='auto_canceled_by_id', null=True, rel_model='self', to_field='id')
-    before_sha = CharField(null=True)
-    ci_ref = ForeignKeyField(db_column='ci_ref_id', null=True, rel_model=CiRefs, to_field='id')
-    committed_at = DateTimeField(null=True)
-    config_source = IntegerField(null=True)
-    created_at = DateTimeField(null=True)
-    duration = IntegerField(null=True)
-    external_pull_request = ForeignKeyField(db_column='external_pull_request_id', null=True, rel_model=ExternalPullRequests, to_field='id')
-    failure_reason = IntegerField(null=True)
-    finished_at = DateTimeField(null=True)
-    iid = IntegerField(null=True)
-    lock_version = IntegerField(null=True)
-    locked = IntegerField()
-    merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
-    pipeline_schedule = ForeignKeyField(db_column='pipeline_schedule_id', null=True, rel_model=CiPipelineSchedules, to_field='id')
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    protected = BooleanField(null=True)
-    ref = CharField(null=True)
-    sha = CharField(null=True)
-    source = IntegerField(null=True)
-    source_sha = BlobField(null=True)
-    started_at = DateTimeField(null=True)
-    status = CharField(null=True)
-    tag = BooleanField(null=True)
-    target_sha = BlobField(null=True)
-    updated_at = DateTimeField(null=True)
-    user = IntegerField(db_column='user_id', null=True)
-    yaml_errors = TextField(null=True)
+# class CiPipelines(BaseModel):
+#     auto_canceled_by = ForeignKeyField(db_column='auto_canceled_by_id', null=True, rel_model='self', to_field='id')
+#     before_sha = CharField(null=True)
+#     ci_ref = ForeignKeyField(db_column='ci_ref_id', null=True, rel_model=CiRefs, to_field='id')
+#     committed_at = DateTimeField(null=True)
+#     config_source = IntegerField(null=True)
+#     created_at = DateTimeField(null=True)
+#     duration = IntegerField(null=True)
+#     external_pull_request = ForeignKeyField(db_column='external_pull_request_id', null=True, rel_model=ExternalPullRequests, to_field='id')
+#     failure_reason = IntegerField(null=True)
+#     finished_at = DateTimeField(null=True)
+#     iid = IntegerField(null=True)
+#     lock_version = IntegerField(null=True)
+#     locked = IntegerField()
+#     merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=DeferredMergeRequests, to_field='id')
+#     pipeline_schedule = ForeignKeyField(db_column='pipeline_schedule_id', null=True, rel_model=CiPipelineSchedules, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     protected = BooleanField(null=True)
+#     ref = CharField(null=True)
+#     sha = CharField(null=True)
+#     source = IntegerField(null=True)
+#     source_sha = BlobField(null=True)
+#     started_at = DateTimeField(null=True)
+#     status = CharField(null=True)
+#     tag = BooleanField(null=True)
+#     target_sha = BlobField(null=True)
+#     updated_at = DateTimeField(null=True)
+#     user = IntegerField(db_column='user_id', null=True)
+#     yaml_errors = TextField(null=True)
 
-    class Meta:
-        db_table = 'ci_pipelines'
-        indexes = (
-            (('created_at', 'project', 'status'), False),
-            (('created_at', 'user', 'config_source'), False),
-            (('created_at', 'user', 'source'), False),
-            (('id', 'ci_ref'), False),
-            (('id', 'ref', 'project'), False),
-            (('id', 'ref', 'project', 'status'), False),
-            (('id', 'source', 'ci_ref', 'status'), False),
-            (('id', 'status'), False),
-            (('id', 'user'), False),
-            (('pipeline_schedule', 'id'), False),
-            (('project', 'id'), False),
-            (('project', 'iid'), True),
-            (('project', 'source'), False),
-            (('project', 'status', 'config_source'), False),
-            (('ref', 'project', 'status', 'user'), False),
-            (('sha', 'project'), False),
-            (('updated_at', 'project', 'status'), False),
-        )
+#     class Meta:
+#         db_table = 'ci_pipelines'
+#         indexes = (
+#             (('created_at', 'project', 'status'), False),
+#             (('created_at', 'user', 'config_source'), False),
+#             (('created_at', 'user', 'source'), False),
+#             (('id', 'ci_ref'), False),
+#             (('id', 'ref', 'project'), False),
+#             (('id', 'ref', 'project', 'status'), False),
+#             (('id', 'source', 'ci_ref', 'status'), False),
+#             (('id', 'status'), False),
+#             (('id', 'user'), False),
+#             (('pipeline_schedule', 'id'), False),
+#             (('project', 'id'), False),
+#             (('project', 'iid'), True),
+#             (('project', 'source'), False),
+#             (('project', 'status', 'config_source'), False),
+#             (('ref', 'project', 'status', 'user'), False),
+#             (('sha', 'project'), False),
+#             (('updated_at', 'project', 'status'), False),
+#         )
 
-class MergeRequests(BaseModel):
-    allow_maintainer_to_push = BooleanField(null=True)
-    approvals_before_merge = IntegerField(null=True)
-    assignee = ForeignKeyField(db_column='assignee_id', null=True, rel_model=Users, to_field='id')
-    author = ForeignKeyField(db_column='author_id', null=True, rel_model=Users, related_name='users_author_set', to_field='id')
-    cached_markdown_version = IntegerField(null=True)
-    created_at = DateTimeField(index=True, null=True)
-    description = TextField(index=True, null=True)
-    description_html = TextField(null=True)
-    discussion_locked = BooleanField(null=True)
-    draft = BooleanField()
-    head_pipeline = ForeignKeyField(db_column='head_pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
-    iid = IntegerField(null=True)
-    in_progress_merge_commit_sha = CharField(null=True)
-    last_edited_at = DateTimeField(null=True)
-    last_edited_by = IntegerField(db_column='last_edited_by_id', null=True)
-    latest_merge_request_diff = ForeignKeyField(db_column='latest_merge_request_diff_id', null=True, rel_model=MergeRequestDiffs, to_field='id')
-    lock_version = IntegerField(null=True)
-    merge_commit_sha = CharField(null=True)
-    merge_error = TextField(null=True)
-    merge_jid = CharField(null=True)
-    merge_params = TextField(null=True)
-    merge_ref_sha = BlobField(null=True)
-    merge_status = CharField()
-    merge_user = ForeignKeyField(db_column='merge_user_id', null=True, rel_model=Users, related_name='users_merge_user_set', to_field='id')
-    merge_when_pipeline_succeeds = BooleanField()
-    milestone = ForeignKeyField(db_column='milestone_id', null=True, rel_model=Milestones, to_field='id')
-    rebase_commit_sha = CharField(null=True)
-    rebase_jid = CharField(null=True)
-    source_branch = CharField(index=True)
-    source_project = ForeignKeyField(db_column='source_project_id', null=True, rel_model=Projects, to_field='id')
-    sprint = ForeignKeyField(db_column='sprint_id', null=True, rel_model=Sprints, to_field='id')
-    squash = BooleanField()
-    squash_commit_sha = BlobField(null=True)
-    state = IntegerField(db_column='state_id')
-    target_branch = CharField(index=True)
-    target_project = ForeignKeyField(db_column='target_project_id', rel_model=Projects, related_name='projects_target_project_set', to_field='id')
-    time_estimate = IntegerField(null=True)
-    title = CharField(index=True, null=True)
-    title_html = TextField(null=True)
-    updated_at = DateTimeField(null=True)
-    updated_by = ForeignKeyField(db_column='updated_by_id', null=True, rel_model=Users, related_name='users_updated_by_set', to_field='id')
+# class MergeRequests(BaseModel):
+#     allow_maintainer_to_push = BooleanField(null=True)
+#     approvals_before_merge = IntegerField(null=True)
+#     assignee = ForeignKeyField(db_column='assignee_id', null=True, rel_model=Users, to_field='id')
+#     author = ForeignKeyField(db_column='author_id', null=True, rel_model=Users, related_name='users_author_set', to_field='id')
+#     cached_markdown_version = IntegerField(null=True)
+#     created_at = DateTimeField(index=True, null=True)
+#     description = TextField(index=True, null=True)
+#     description_html = TextField(null=True)
+#     discussion_locked = BooleanField(null=True)
+#     draft = BooleanField()
+#     head_pipeline = ForeignKeyField(db_column='head_pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
+#     iid = IntegerField(null=True)
+#     in_progress_merge_commit_sha = CharField(null=True)
+#     last_edited_at = DateTimeField(null=True)
+#     last_edited_by = IntegerField(db_column='last_edited_by_id', null=True)
+#     latest_merge_request_diff = ForeignKeyField(db_column='latest_merge_request_diff_id', null=True, rel_model=MergeRequestDiffs, to_field='id')
+#     lock_version = IntegerField(null=True)
+#     merge_commit_sha = CharField(null=True)
+#     merge_error = TextField(null=True)
+#     merge_jid = CharField(null=True)
+#     merge_params = TextField(null=True)
+#     merge_ref_sha = BlobField(null=True)
+#     merge_status = CharField()
+#     merge_user = ForeignKeyField(db_column='merge_user_id', null=True, rel_model=Users, related_name='users_merge_user_set', to_field='id')
+#     merge_when_pipeline_succeeds = BooleanField()
+#     milestone = ForeignKeyField(db_column='milestone_id', null=True, rel_model=Milestones, to_field='id')
+#     rebase_commit_sha = CharField(null=True)
+#     rebase_jid = CharField(null=True)
+#     source_branch = CharField(index=True)
+#     source_project = ForeignKeyField(db_column='source_project_id', null=True, rel_model=Projects, to_field='id')
+#     sprint = ForeignKeyField(db_column='sprint_id', null=True, rel_model=Sprints, to_field='id')
+#     squash = BooleanField()
+#     squash_commit_sha = BlobField(null=True)
+#     state = IntegerField(db_column='state_id')
+#     target_branch = CharField(index=True)
+#     target_project = ForeignKeyField(db_column='target_project_id', rel_model=Projects, related_name='projects_target_project_set', to_field='id')
+#     time_estimate = IntegerField(null=True)
+#     title = CharField(index=True, null=True)
+#     title_html = TextField(null=True)
+#     updated_at = DateTimeField(null=True)
+#     updated_by = ForeignKeyField(db_column='updated_by_id', null=True, rel_model=Users, related_name='users_updated_by_set', to_field='id')
 
-    class Meta:
-        db_table = 'merge_requests'
-        indexes = (
-            (('id', 'target_project', 'latest_merge_request_diff'), False),
-            (('id', 'target_project', 'merge_commit_sha'), False),
-            (('id', 'updated_at', 'target_project'), False),
-            (('merge_jid', 'id'), False),
-            (('source_branch', 'source_project'), False),
-            (('source_branch', 'target_project'), False),
-            (('source_project', 'source_branch'), False),
-            (('state', 'merge_status'), False),
-            (('target_branch', 'target_project'), False),
-            (('target_project', 'id', 'created_at'), False),
-            (('target_project', 'iid'), False),
-            (('target_project', 'iid'), False),
-            (('target_project', 'iid'), False),
-            (('target_project', 'iid'), True),
-            (('target_project', 'iid', 'state'), False),
-            (('target_project', 'squash_commit_sha'), False),
-            (('target_project', 'state', 'created_at', 'id'), False),
-        )
+#     class Meta:
+#         db_table = 'merge_requests'
+#         indexes = (
+#             (('id', 'target_project', 'latest_merge_request_diff'), False),
+#             (('id', 'target_project', 'merge_commit_sha'), False),
+#             (('id', 'updated_at', 'target_project'), False),
+#             (('merge_jid', 'id'), False),
+#             (('source_branch', 'source_project'), False),
+#             (('source_branch', 'target_project'), False),
+#             (('source_project', 'source_branch'), False),
+#             (('state', 'merge_status'), False),
+#             (('target_branch', 'target_project'), False),
+#             (('target_project', 'id', 'created_at'), False),
+#             (('target_project', 'iid'), False),
+#             (('target_project', 'iid'), False),
+#             (('target_project', 'iid'), False),
+#             (('target_project', 'iid'), True),
+#             (('target_project', 'iid', 'state'), False),
+#             (('target_project', 'squash_commit_sha'), False),
+#             (('target_project', 'state', 'created_at', 'id'), False),
+#         )
 
-class Reviews(BaseModel):
-    author = ForeignKeyField(db_column='author_id', null=True, rel_model=Users, to_field='id')
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+# class Reviews(BaseModel):
+#     author = ForeignKeyField(db_column='author_id', null=True, rel_model=Users, to_field='id')
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
 
-    class Meta:
-        db_table = 'reviews'
+#     class Meta:
+#         db_table = 'reviews'
 
 class Notes(BaseModel):
     attachment = CharField(null=True)
@@ -890,7 +894,7 @@ class Notes(BaseModel):
     resolved_at = DateTimeField(null=True)
     resolved_by = IntegerField(db_column='resolved_by_id', null=True)
     resolved_by_push = BooleanField(null=True)
-    review = ForeignKeyField(db_column='review_id', null=True, rel_model=Reviews, to_field='id')
+    #review = ForeignKeyField(db_column='review_id', null=True, rel_model=Reviews, to_field='id')
     st_diff = TextField(null=True)
     system = BooleanField()
     type = CharField(null=True)
@@ -908,19 +912,19 @@ class Notes(BaseModel):
             (('system', 'noteable', 'noteable_type'), False),
         )
 
-class AlertManagementAlertUserMentions(BaseModel):
-    alert_management_alert = ForeignKeyField(db_column='alert_management_alert_id', rel_model=AlertManagementAlerts, to_field='id', unique=True)
-    id = BigIntegerField(primary_key=True)
-    mentioned_groups_ids = UnknownField(null=True)  # ARRAY
-    mentioned_projects_ids = UnknownField(null=True)  # ARRAY
-    mentioned_users_ids = UnknownField(null=True)  # ARRAY
-    note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
+# class AlertManagementAlertUserMentions(BaseModel):
+#     alert_management_alert = ForeignKeyField(db_column='alert_management_alert_id', rel_model=AlertManagementAlerts, to_field='id', unique=True)
+#     id = BigIntegerField(primary_key=True)
+#     #mentioned_groups_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_projects_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_users_ids = UnknownField(null=True)  # ARRAY
+#     note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
 
-    class Meta:
-        db_table = 'alert_management_alert_user_mentions'
-        indexes = (
-            (('alert_management_alert', 'note'), True),
-        )
+#     class Meta:
+#         db_table = 'alert_management_alert_user_mentions'
+#         indexes = (
+#             (('alert_management_alert', 'note'), True),
+#         )
 
 class AlertManagementHttpIntegrations(BaseModel):
     active = BooleanField()
@@ -1028,19 +1032,19 @@ class AnalyticsCycleAnalyticsIssueStageEvents(BaseModel):
         db_table = 'analytics_cycle_analytics_issue_stage_events'
         primary_key = CompositeKey('issue', 'stage_event_hash')
 
-class AnalyticsCycleAnalyticsMergeRequestStageEvents(BaseModel):
-    author = BigIntegerField(db_column='author_id', null=True)
-    end_event_timestamp = DateTimeField(null=True)
-    group = BigIntegerField(db_column='group_id')
-    merge_request = BigIntegerField(db_column='merge_request_id')
-    milestone = BigIntegerField(db_column='milestone_id', null=True)
-    project = BigIntegerField(db_column='project_id')
-    stage_event_hash = BigIntegerField(db_column='stage_event_hash_id')
-    start_event_timestamp = DateTimeField()
+# class AnalyticsCycleAnalyticsMergeRequestStageEvents(BaseModel):
+#     author = BigIntegerField(db_column='author_id', null=True)
+#     end_event_timestamp = DateTimeField(null=True)
+#     group = BigIntegerField(db_column='group_id')
+#     merge_request = BigIntegerField(db_column='merge_request_id')
+#     milestone = BigIntegerField(db_column='milestone_id', null=True)
+#     project = BigIntegerField(db_column='project_id')
+#     stage_event_hash = BigIntegerField(db_column='stage_event_hash_id')
+#     start_event_timestamp = DateTimeField()
 
-    class Meta:
-        db_table = 'analytics_cycle_analytics_merge_request_stage_events'
-        primary_key = CompositeKey('merge_request', 'stage_event_hash')
+#     class Meta:
+#         db_table = 'analytics_cycle_analytics_merge_request_stage_events'
+#         primary_key = CompositeKey('merge_request', 'stage_event_hash')
 
 class AnalyticsCycleAnalyticsProjectValueStreams(BaseModel):
     created_at = DateTimeField()
@@ -1055,27 +1059,27 @@ class AnalyticsCycleAnalyticsProjectValueStreams(BaseModel):
             (('project', 'name'), True),
         )
 
-class AnalyticsCycleAnalyticsProjectStages(BaseModel):
-    created_at = DateTimeField()
-    custom = BooleanField()
-    end_event_identifier = IntegerField()
-    end_event_label = ForeignKeyField(db_column='end_event_label_id', null=True, rel_model=Labels, to_field='id')
-    hidden = BooleanField()
-    id = BigIntegerField(primary_key=True)
-    name = CharField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    project_value_stream = ForeignKeyField(db_column='project_value_stream_id', rel_model=AnalyticsCycleAnalyticsProjectValueStreams, to_field='id')
-    relative_position = IntegerField(index=True, null=True)
-    stage_event_hash = ForeignKeyField(db_column='stage_event_hash_id', null=True, rel_model=AnalyticsCycleAnalyticsStageEventHashes, to_field='id')
-    start_event_identifier = IntegerField()
-    start_event_label = ForeignKeyField(db_column='start_event_label_id', null=True, rel_model=Labels, related_name='labels_start_event_label_set', to_field='id')
-    updated_at = DateTimeField()
+# class AnalyticsCycleAnalyticsProjectStages(BaseModel):
+#     created_at = DateTimeField()
+#     custom = BooleanField()
+#     end_event_identifier = IntegerField()
+#     end_event_label = ForeignKeyField(db_column='end_event_label_id', null=True, rel_model=Labels, to_field='id')
+#     hidden = BooleanField()
+#     id = BigIntegerField(primary_key=True)
+#     name = CharField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     project_value_stream = ForeignKeyField(db_column='project_value_stream_id', rel_model=AnalyticsCycleAnalyticsProjectValueStreams, to_field='id')
+#     relative_position = IntegerField(index=True, null=True)
+#     stage_event_hash = ForeignKeyField(db_column='stage_event_hash_id', null=True, rel_model=AnalyticsCycleAnalyticsStageEventHashes, to_field='id')
+#     start_event_identifier = IntegerField()
+#     start_event_label = ForeignKeyField(db_column='start_event_label_id', null=True, rel_model=Labels, related_name='labels_start_event_label_set', to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'analytics_cycle_analytics_project_stages'
-        indexes = (
-            (('name', 'project'), True),
-        )
+#     class Meta:
+#         db_table = 'analytics_cycle_analytics_project_stages'
+#         indexes = (
+#             (('name', 'project'), True),
+#         )
 
 class AnalyticsDevopsAdoptionSegments(BaseModel):
     created_at = DateTimeField()
@@ -1202,12 +1206,12 @@ class ApplicationSettings(BaseModel):
     cached_markdown_version = IntegerField(null=True)
     check_namespace_plan = BooleanField()
     commit_email_hostname = CharField(null=True)
-    compliance_frameworks = UnknownField()  # ARRAY
+    #compliance_frameworks = UnknownField()  # ARRAY
     container_expiration_policies_enable_historic_entries = BooleanField()
     container_registry_cleanup_tags_service_max_list_size = IntegerField()
     container_registry_delete_tags_service_timeout = IntegerField()
     container_registry_expiration_policies_worker_capacity = IntegerField()
-    container_registry_features = UnknownField()  # ARRAY
+    #container_registry_features = UnknownField()  # ARRAY
     container_registry_token_expire_delay = IntegerField(null=True)
     container_registry_vendor = TextField()
     container_registry_version = TextField()
@@ -1396,10 +1400,10 @@ class ApplicationSettings(BaseModel):
     mirror_max_delay = IntegerField()
     new_user_signups_cap = IntegerField(null=True)
     notes_create_limit = IntegerField()
-    notes_create_limit_allowlist = UnknownField()  # ARRAY
+    #notes_create_limit_allowlist = UnknownField()  # ARRAY
     notify_on_unknown_sign_in = BooleanField()
     npm_package_requests_forwarding = BooleanField()
-    outbound_local_requests_whitelist = UnknownField()  # ARRAY
+    #outbound_local_requests_whitelist = UnknownField()  # ARRAY
     pages_domain_verification_enabled = BooleanField()
     password_authentication_enabled_for_git = BooleanField()
     password_authentication_enabled_for_web = BooleanField(null=True)
@@ -1417,7 +1421,7 @@ class ApplicationSettings(BaseModel):
     project_import_limit = IntegerField()
     prometheus_metrics_enabled = BooleanField()
     protected_ci_variables = BooleanField()
-    protected_paths = UnknownField(null=True)  # ARRAY
+    #protected_paths = UnknownField(null=True)  # ARRAY
     pseudonymizer_enabled = BooleanField()
     push_event_activities_limit = IntegerField()
     push_event_hooks_limit = IntegerField()
@@ -1524,7 +1528,7 @@ class ApplicationSettings(BaseModel):
     user_oauth_applications = BooleanField(null=True)
     user_show_add_ssh_key_message = BooleanField()
     uuid = CharField(null=True)
-    valid_runner_registrars = UnknownField(null=True)  # ARRAY
+    #valid_runner_registrars = UnknownField(null=True)  # ARRAY
     version_check_enabled = BooleanField(null=True)
     web_ide_clientside_preview_enabled = BooleanField()
     whats_new_variant = IntegerField(null=True)
@@ -1541,74 +1545,74 @@ class ApprovalProjectRules(BaseModel):
     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
     report_type = IntegerField(index=True, null=True)
     rule_type = IntegerField(index=True)
-    scanners = UnknownField(null=True)  # ARRAY
-    severity_levels = UnknownField()  # ARRAY
+    #scanners = UnknownField(null=True)  # ARRAY
+    #severity_levels = UnknownField()  # ARRAY
     updated_at = DateTimeField()
     vulnerabilities_allowed = IntegerField()
 
     class Meta:
         db_table = 'approval_project_rules'
 
-class ApprovalMergeRequestRules(BaseModel):
-    approvals_required = IntegerField()
-    created_at = DateTimeField(index=True)
-    id = BigIntegerField(primary_key=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
-    modified_from_project_rule = BooleanField()
-    name = CharField()
-    report_type = IntegerField(null=True)
-    rule_type = IntegerField()
-    section = TextField(null=True)
-    updated_at = DateTimeField()
+# class ApprovalMergeRequestRules(BaseModel):
+#     approvals_required = IntegerField()
+#     created_at = DateTimeField(index=True)
+#     id = BigIntegerField(primary_key=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
+#     modified_from_project_rule = BooleanField()
+#     name = CharField()
+#     report_type = IntegerField(null=True)
+#     rule_type = IntegerField()
+#     section = TextField(null=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'approval_merge_request_rules'
-        indexes = (
-            (('merge_request', 'name', 'section'), True),
-            (('merge_request', 'rule_type'), True),
-            (('name', 'merge_request'), True),
-        )
+#     class Meta:
+#         db_table = 'approval_merge_request_rules'
+#         indexes = (
+#             (('merge_request', 'name', 'section'), True),
+#             (('merge_request', 'rule_type'), True),
+#             (('name', 'merge_request'), True),
+#         )
 
-class ApprovalMergeRequestRuleSources(BaseModel):
-    approval_merge_request_rule = ForeignKeyField(db_column='approval_merge_request_rule_id', rel_model=ApprovalMergeRequestRules, to_field='id', unique=True)
-    approval_project_rule = ForeignKeyField(db_column='approval_project_rule_id', rel_model=ApprovalProjectRules, to_field='id')
-    id = BigIntegerField(primary_key=True)
+# class ApprovalMergeRequestRuleSources(BaseModel):
+#     approval_merge_request_rule = ForeignKeyField(db_column='approval_merge_request_rule_id', rel_model=ApprovalMergeRequestRules, to_field='id', unique=True)
+#     approval_project_rule = ForeignKeyField(db_column='approval_project_rule_id', rel_model=ApprovalProjectRules, to_field='id')
+#     id = BigIntegerField(primary_key=True)
 
-    class Meta:
-        db_table = 'approval_merge_request_rule_sources'
+#     class Meta:
+#         db_table = 'approval_merge_request_rule_sources'
 
-class ApprovalMergeRequestRulesApprovedApprovers(BaseModel):
-    approval_merge_request_rule = ForeignKeyField(db_column='approval_merge_request_rule_id', rel_model=ApprovalMergeRequestRules, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class ApprovalMergeRequestRulesApprovedApprovers(BaseModel):
+#     approval_merge_request_rule = ForeignKeyField(db_column='approval_merge_request_rule_id', rel_model=ApprovalMergeRequestRules, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'approval_merge_request_rules_approved_approvers'
-        indexes = (
-            (('approval_merge_request_rule', 'user'), True),
-        )
+#     class Meta:
+#         db_table = 'approval_merge_request_rules_approved_approvers'
+#         indexes = (
+#             (('approval_merge_request_rule', 'user'), True),
+#         )
 
-class ApprovalMergeRequestRulesGroups(BaseModel):
-    approval_merge_request_rule = ForeignKeyField(db_column='approval_merge_request_rule_id', rel_model=ApprovalMergeRequestRules, to_field='id')
-    group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
-    id = BigIntegerField(primary_key=True)
+# class ApprovalMergeRequestRulesGroups(BaseModel):
+#     approval_merge_request_rule = ForeignKeyField(db_column='approval_merge_request_rule_id', rel_model=ApprovalMergeRequestRules, to_field='id')
+#     group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
+#     id = BigIntegerField(primary_key=True)
 
-    class Meta:
-        db_table = 'approval_merge_request_rules_groups'
-        indexes = (
-            (('approval_merge_request_rule', 'group'), True),
-        )
+#     class Meta:
+#         db_table = 'approval_merge_request_rules_groups'
+#         indexes = (
+#             (('approval_merge_request_rule', 'group'), True),
+#         )
 
-class ApprovalMergeRequestRulesUsers(BaseModel):
-    approval_merge_request_rule = ForeignKeyField(db_column='approval_merge_request_rule_id', rel_model=ApprovalMergeRequestRules, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class ApprovalMergeRequestRulesUsers(BaseModel):
+#     approval_merge_request_rule = ForeignKeyField(db_column='approval_merge_request_rule_id', rel_model=ApprovalMergeRequestRules, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'approval_merge_request_rules_users'
-        indexes = (
-            (('approval_merge_request_rule', 'user'), True),
-        )
+#     class Meta:
+#         db_table = 'approval_merge_request_rules_users'
+#         indexes = (
+#             (('approval_merge_request_rule', 'user'), True),
+#         )
 
 class ApprovalProjectRulesGroups(BaseModel):
     approval_project_rule = ForeignKeyField(db_column='approval_project_rule_id', rel_model=ApprovalProjectRules, to_field='id')
@@ -1657,18 +1661,18 @@ class ApprovalProjectRulesUsers(BaseModel):
             (('approval_project_rule', 'user'), True),
         )
 
-class Approvals(BaseModel):
-    created_at = DateTimeField(null=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
-    updated_at = DateTimeField(null=True)
-    user = IntegerField(db_column='user_id')
+# class Approvals(BaseModel):
+#     created_at = DateTimeField(null=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
+#     updated_at = DateTimeField(null=True)
+#     user = IntegerField(db_column='user_id')
 
-    class Meta:
-        db_table = 'approvals'
-        indexes = (
-            (('merge_request', 'created_at'), False),
-            (('merge_request', 'user'), True),
-        )
+#     class Meta:
+#         db_table = 'approvals'
+#         indexes = (
+#             (('merge_request', 'created_at'), False),
+#             (('merge_request', 'user'), True),
+#         )
 
 class ApproverGroups(BaseModel):
     created_at = DateTimeField(null=True)
@@ -1728,7 +1732,7 @@ class AuditEvents(BaseModel):
     entity_path = TextField(null=True)
     entity_type = CharField()
     id = BigIntegerField()
-    ip_address = UnknownField(null=True)  # inet
+    #ip_address = UnknownField(null=True)  # inet
     target_details = TextField(null=True)
     target = BigIntegerField(db_column='target_id', null=True)
     target_type = TextField(null=True)
@@ -1753,7 +1757,7 @@ class AuditEventsExternalAuditEventDestinations(BaseModel):
 class AuthenticationEvents(BaseModel):
     created_at = DateTimeField()
     id = BigIntegerField(primary_key=True)
-    ip_address = UnknownField(null=True)  # inet
+    #ip_address = UnknownField(null=True)  # inet
     provider = TextField(index=True)
     result = IntegerField()
     user = ForeignKeyField(db_column='user_id', null=True, rel_model=Users, to_field='id')
@@ -1974,20 +1978,20 @@ class BoardsEpicBoardLabels(BaseModel):
     class Meta:
         db_table = 'boards_epic_board_labels'
 
-class BoardsEpicBoardPositions(BaseModel):
-    created_at = DateTimeField()
-    epic_board = ForeignKeyField(db_column='epic_board_id', rel_model=BoardsEpicBoards, to_field='id')
-    epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    relative_position = IntegerField(null=True)
-    updated_at = DateTimeField()
+# class BoardsEpicBoardPositions(BaseModel):
+#     created_at = DateTimeField()
+#     epic_board = ForeignKeyField(db_column='epic_board_id', rel_model=BoardsEpicBoards, to_field='id')
+#     epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     relative_position = IntegerField(null=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'boards_epic_board_positions'
-        indexes = (
-            (('epic_board', 'epic'), True),
-            (('epic_board', 'epic', 'relative_position'), False),
-        )
+#     class Meta:
+#         db_table = 'boards_epic_board_positions'
+#         indexes = (
+#             (('epic_board', 'epic'), True),
+#             (('epic_board', 'epic', 'relative_position'), False),
+#         )
 
 class BoardsEpicBoardRecentVisits(BaseModel):
     created_at = DateTimeField()
@@ -2032,18 +2036,18 @@ class BoardsEpicListUserPreferences(BaseModel):
             (('user', 'epic_list'), True),
         )
 
-class BoardsEpicUserPreferences(BaseModel):
-    board = ForeignKeyField(db_column='board_id', rel_model=Boards, to_field='id')
-    collapsed = BooleanField()
-    epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class BoardsEpicUserPreferences(BaseModel):
+#     board = ForeignKeyField(db_column='board_id', rel_model=Boards, to_field='id')
+#     collapsed = BooleanField()
+#     epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'boards_epic_user_preferences'
-        indexes = (
-            (('board', 'user', 'epic'), True),
-        )
+#     class Meta:
+#         db_table = 'boards_epic_user_preferences'
+#         indexes = (
+#             (('board', 'user', 'epic'), True),
+#         )
 
 class BroadcastMessages(BaseModel):
     broadcast_type = IntegerField()
@@ -2236,986 +2240,986 @@ class ChatTeams(BaseModel):
     class Meta:
         db_table = 'chat_teams'
 
-class CiStages(BaseModel):
-    created_at = DateTimeField(null=True)
-    id = BigIntegerField(primary_key=True)
-    lock_version = IntegerField(null=True)
-    name = CharField(null=True)
-    pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
-    position = IntegerField(null=True)
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    status = IntegerField(null=True)
-    updated_at = DateTimeField(null=True)
-
-    class Meta:
-        db_table = 'ci_stages'
-        indexes = (
-            (('id', 'pipeline'), False),
-            (('pipeline', 'name'), True),
-            (('pipeline', 'position'), False),
-        )
-
-class CiResourceGroups(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    key = CharField()
-    process_mode = IntegerField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'ci_resource_groups'
-        indexes = (
-            (('project', 'key'), True),
-        )
-
-class CiBuilds(BaseModel):
-    allow_failure = BooleanField()
-    artifacts_expire_at = DateTimeField(null=True)
-    auto_canceled_by = ForeignKeyField(db_column='auto_canceled_by_id', null=True, rel_model=CiPipelines, to_field='id')
-    commit = ForeignKeyField(db_column='commit_id', null=True, rel_model=CiPipelines, related_name='ci_pipelines_commit_set', to_field='id')
-    coverage = FloatField(null=True)
-    coverage_regex = CharField(null=True)
-    created_at = DateTimeField(null=True)
-    description = CharField(null=True)
-    environment = CharField(null=True)
-    erased_at = DateTimeField(null=True)
-    erased_by = IntegerField(db_column='erased_by_id', null=True)
-    failure_reason = IntegerField(null=True)
-    finished_at = DateTimeField(null=True)
-    id = BigIntegerField(primary_key=True)
-    lock_version = IntegerField(null=True)
-    name = CharField(null=True)
-    options = TextField(null=True)
-    processed = BooleanField(null=True)
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    protected = BooleanField(null=True)
-    queued_at = DateTimeField(index=True, null=True)
-    ref = CharField(null=True)
-    resource_group = ForeignKeyField(db_column='resource_group_id', null=True, rel_model=CiResourceGroups, to_field='id')
-    retried = BooleanField(null=True)
-    runner = IntegerField(db_column='runner_id', index=True, null=True)
-    scheduled_at = DateTimeField(index=True, null=True)
-    scheduling_type = IntegerField(null=True)
-    stage = CharField(null=True)
-    stage_id = ForeignKeyField(db_column='stage_id', null=True, rel_model=CiStages, to_field='id')
-    stage_idx = IntegerField(null=True)
-    started_at = DateTimeField(null=True)
-    status = CharField(null=True)
-    tag = BooleanField(null=True)
-    target_url = CharField(null=True)
-    token = CharField(null=True, unique=True)
-    token_encrypted = CharField(null=True, unique=True)
-    trace = TextField(null=True)
-    trigger_request = IntegerField(db_column='trigger_request_id', null=True)
-    type = CharField(null=True)
-    updated_at = DateTimeField(index=True, null=True)
-    upstream_pipeline = ForeignKeyField(db_column='upstream_pipeline_id', null=True, rel_model=CiPipelines, related_name='ci_pipelines_upstream_pipeline_set', to_field='id')
-    user = IntegerField(db_column='user_id', index=True, null=True)
-    waiting_for_resource_at = DateTimeField(null=True)
-    when = CharField(null=True)
-    yaml_variables = TextField(null=True)
-
-    class Meta:
-        db_table = 'ci_builds'
-        indexes = (
-            (('created_at', 'name', 'user'), False),
-            (('created_at', 'project', 'status'), False),
-            (('created_at', 'user'), False),
-            (('id', 'commit', 'artifacts_expire_at'), False),
-            (('name', 'id'), False),
-            (('name', 'ref', 'project'), False),
-            (('name', 'user'), False),
-            (('project', 'id'), False),
-            (('ref', 'type', 'commit', 'name'), False),
-            (('resource_group', 'id'), False),
-            (('runner', 'id'), False),
-            (('runner', 'project', 'id'), False),
-            (('stage_idx', 'commit', 'created_at'), False),
-            (('status', 'commit', 'resource_group'), False),
-            (('status', 'project'), False),
-            (('type', 'commit', 'ref'), False),
-            (('type', 'status', 'commit'), False),
-            (('type', 'status', 'runner'), False),
-        )
-
-class CiBuildNeeds(BaseModel):
-    artifacts = BooleanField()
-    build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
-    name = TextField()
-    optional = BooleanField()
-
-    class Meta:
-        db_table = 'ci_build_needs'
-        indexes = (
-            (('name', 'build'), True),
-        )
-
-class CiBuildPendingStates(BaseModel):
-    build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id', unique=True)
-    created_at = DateTimeField()
-    failure_reason = IntegerField(null=True)
-    id = BigIntegerField(primary_key=True)
-    state = IntegerField(null=True)
-    trace_bytesize = BigIntegerField(null=True)
-    trace_checksum = BlobField(null=True)
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'ci_build_pending_states'
-
-class CiBuildReportResults(BaseModel):
-    build = ForeignKeyField(db_column='build_id', primary_key=True, rel_model=CiBuilds, to_field='id')
-    data = JSONField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-
-    class Meta:
-        db_table = 'ci_build_report_results'
-
-class CiBuildTraceChunks(BaseModel):
-    build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
-    checksum = BlobField(null=True)
-    chunk_index = IntegerField()
-    data_store = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    lock_version = IntegerField()
-    raw_data = BlobField(null=True)
-
-    class Meta:
-        db_table = 'ci_build_trace_chunks'
-        indexes = (
-            (('chunk_index', 'build'), True),
-        )
-
-class CiJobArtifacts(BaseModel):
-    created_at = DateTimeField()
-    expire_at = DateTimeField(index=True, null=True)
-    file = CharField(null=True)
-    file_format = IntegerField(null=True)
-    file_location = IntegerField(null=True)
-    file_sha256 = BlobField(null=True)
-    file_store = IntegerField(index=True, null=True)
-    file_type = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    job = ForeignKeyField(db_column='job_id', rel_model=CiBuilds, to_field='id')
-    locked = IntegerField(null=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    size = BigIntegerField(null=True)
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'ci_job_artifacts'
-        indexes = (
-            (('file_type', 'created_at', 'project'), False),
-            (('file_type', 'job'), True),
-            (('job', 'expire_at'), False),
-            (('project', 'id'), False),
-        )
-
-class CiBuildTraceMetadata(BaseModel):
-    archival_attempts = IntegerField()
-    archived_at = DateTimeField(null=True)
-    build = ForeignKeyField(db_column='build_id', primary_key=True, rel_model=CiBuilds, to_field='id')
-    checksum = BlobField(null=True)
-    last_archival_attempt_at = DateTimeField(null=True)
-    remote_checksum = BlobField(null=True)
-    trace_artifact = ForeignKeyField(db_column='trace_artifact_id', null=True, rel_model=CiJobArtifacts, to_field='id')
-
-    class Meta:
-        db_table = 'ci_build_trace_metadata'
-
-class CiBuildsMetadata(BaseModel):
-    build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
-    config_options = JSONField(null=True)
-    config_variables = JSONField(null=True)
-    environment_auto_stop_in = CharField(null=True)
-    expanded_environment_name = CharField(null=True)
-    has_exposed_artifacts = BooleanField(null=True)
-    id = BigIntegerField(primary_key=True)
-    interruptible = BooleanField(null=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    runner_features = JSONField()
-    secrets = JSONField()
-    timeout = IntegerField(null=True)
-    timeout_source = IntegerField()
-
-    class Meta:
-        db_table = 'ci_builds_metadata'
-        indexes = (
-            (('build', 'id'), False),
-        )
-
-class CiBuildsRunnerSession(BaseModel):
-    authorization = CharField(null=True)
-    build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id', unique=True)
-    certificate = CharField(null=True)
-    id = BigIntegerField(primary_key=True)
-    url = CharField()
-
-    class Meta:
-        db_table = 'ci_builds_runner_session'
-
-class CiDailyBuildGroupReportResults(BaseModel):
-    data = JSONField()
-    date = DateField()
-    default_branch = BooleanField()
-    group = ForeignKeyField(db_column='group_id', null=True, rel_model=Namespaces, to_field='id')
-    group_name = TextField()
-    id = BigIntegerField(primary_key=True)
-    last_pipeline = ForeignKeyField(db_column='last_pipeline_id', rel_model=CiPipelines, to_field='id')
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    ref_path = TextField()
-
-    class Meta:
-        db_table = 'ci_daily_build_group_report_results'
-        indexes = (
-            (('date', 'project'), False),
-            (('group_name', 'date', 'project', 'ref_path'), True),
-        )
-
-class CiDeletedObjects(BaseModel):
-    file = TextField()
-    file_store = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    pick_up_at = DateTimeField(index=True)
-    store_dir = TextField()
-
-    class Meta:
-        db_table = 'ci_deleted_objects'
-
-class CiFreezePeriods(BaseModel):
-    created_at = DateTimeField()
-    cron_timezone = CharField()
-    freeze_end = CharField()
-    freeze_start = CharField()
-    id = BigIntegerField(primary_key=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'ci_freeze_periods'
-
-class CiGroupVariables(BaseModel):
-    created_at = DateTimeField()
-    encrypted_value = TextField(null=True)
-    encrypted_value_iv = CharField(null=True)
-    encrypted_value_salt = CharField(null=True)
-    environment_scope = TextField()
-    group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
-    key = CharField()
-    masked = BooleanField()
-    protected = BooleanField()
-    updated_at = DateTimeField()
-    value = TextField(null=True)
-    variable_type = IntegerField()
-
-    class Meta:
-        db_table = 'ci_group_variables'
-        indexes = (
-            (('key', 'group', 'environment_scope'), True),
-        )
-
-class CiInstanceVariables(BaseModel):
-    encrypted_value = TextField(null=True)
-    encrypted_value_iv = TextField(null=True)
-    id = BigIntegerField(primary_key=True)
-    key = TextField(unique=True)
-    masked = BooleanField(null=True)
-    protected = BooleanField(null=True)
-    variable_type = IntegerField()
-
-    class Meta:
-        db_table = 'ci_instance_variables'
-
-class CiJobTokenProjectScopeLinks(BaseModel):
-    added_by = ForeignKeyField(db_column='added_by_id', null=True, rel_model=Users, to_field='id')
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    source_project = ForeignKeyField(db_column='source_project_id', rel_model=Projects, to_field='id')
-    target_project = ForeignKeyField(db_column='target_project_id', rel_model=Projects, related_name='projects_target_project_set', to_field='id')
-
-    class Meta:
-        db_table = 'ci_job_token_project_scope_links'
-        indexes = (
-            (('source_project', 'target_project'), True),
-        )
-
-class CiJobVariables(BaseModel):
-    encrypted_value = TextField(null=True)
-    encrypted_value_iv = CharField(null=True)
-    id = BigIntegerField(primary_key=True)
-    job = ForeignKeyField(db_column='job_id', rel_model=CiBuilds, to_field='id')
-    key = CharField()
-    source = IntegerField()
-    variable_type = IntegerField()
-
-    class Meta:
-        db_table = 'ci_job_variables'
-        indexes = (
-            (('key', 'job'), True),
-        )
-
-class CiMinutesAdditionalPacks(BaseModel):
-    created_at = DateTimeField()
-    expires_at = DateField(null=True)
-    id = BigIntegerField(primary_key=True)
-    namespace = ForeignKeyField(db_column='namespace_id', rel_model=Namespaces, to_field='id')
-    number_of_minutes = IntegerField()
-    purchase_xid = TextField(null=True)
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'ci_minutes_additional_packs'
-        indexes = (
-            (('namespace', 'purchase_xid'), False),
-        )
-
-class CiNamespaceMonthlyUsages(BaseModel):
-    additional_amount_available = IntegerField()
-    amount_used = DecimalField()
-    date = DateField()
-    id = BigIntegerField(primary_key=True)
-    namespace = BigIntegerField(db_column='namespace_id')
-    notification_level = IntegerField()
-    shared_runners_duration = IntegerField()
-
-    class Meta:
-        db_table = 'ci_namespace_monthly_usages'
-        indexes = (
-            (('namespace', 'date'), True),
-        )
-
-class CiPendingBuilds(BaseModel):
-    build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id', unique=True)
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    instance_runners_enabled = BooleanField()
-    minutes_exceeded = BooleanField()
-    namespace = ForeignKeyField(db_column='namespace_id', null=True, rel_model=Namespaces, to_field='id')
-    namespace_traversal_ids = UnknownField(index=True, null=True)  # ARRAY
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    protected = BooleanField()
-    tag_ids = UnknownField(index=True, null=True)  # ARRAY
-
-    class Meta:
-        db_table = 'ci_pending_builds'
-
-class CiPipelineArtifacts(BaseModel):
-    created_at = DateTimeField()
-    expire_at = DateTimeField(index=True, null=True)
-    file = TextField(null=True)
-    file_format = IntegerField()
-    file_store = IntegerField()
-    file_type = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    size = IntegerField()
-    updated_at = DateTimeField()
-    verification_checksum = BlobField(null=True)
-    verification_failure = TextField(null=True)
-    verification_retry_at = DateTimeField(index=True, null=True)
-    verification_retry_count = IntegerField(null=True)
-    verification_started_at = DateTimeField(null=True)
-    verification_state = IntegerField(index=True)
-    verified_at = DateTimeField(index=True, null=True)
-
-    class Meta:
-        db_table = 'ci_pipeline_artifacts'
-        indexes = (
-            (('pipeline', 'file_type'), True),
-        )
-
-class CiPipelineChatData(BaseModel):
-    chat_name = ForeignKeyField(db_column='chat_name_id', rel_model=ChatNames, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id', unique=True)
-    response_url = TextField()
-
-    class Meta:
-        db_table = 'ci_pipeline_chat_data'
-
-class CiPipelineMessages(BaseModel):
-    content = TextField()
-    id = BigIntegerField(primary_key=True)
-    pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
-    severity = IntegerField()
-
-    class Meta:
-        db_table = 'ci_pipeline_messages'
-
-class CiPipelineScheduleVariables(BaseModel):
-    created_at = DateTimeField(null=True)
-    encrypted_value = TextField(null=True)
-    encrypted_value_iv = CharField(null=True)
-    encrypted_value_salt = CharField(null=True)
-    key = CharField()
-    pipeline_schedule = ForeignKeyField(db_column='pipeline_schedule_id', rel_model=CiPipelineSchedules, to_field='id')
-    updated_at = DateTimeField(null=True)
-    value = TextField(null=True)
-    variable_type = IntegerField()
-
-    class Meta:
-        db_table = 'ci_pipeline_schedule_variables'
-        indexes = (
-            (('key', 'pipeline_schedule'), True),
-        )
-
-class CiPipelineVariables(BaseModel):
-    encrypted_value = TextField(null=True)
-    encrypted_value_iv = CharField(null=True)
-    encrypted_value_salt = CharField(null=True)
-    key = CharField()
-    pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
-    value = TextField(null=True)
-    variable_type = IntegerField()
-
-    class Meta:
-        db_table = 'ci_pipeline_variables'
-        indexes = (
-            (('key', 'pipeline'), True),
-        )
-
-class CiPipelinesConfig(BaseModel):
-    content = TextField()
-    pipeline = ForeignKeyField(db_column='pipeline_id', primary_key=True, rel_model=CiPipelines, to_field='id')
-
-    class Meta:
-        db_table = 'ci_pipelines_config'
-
-class CiPlatformMetrics(BaseModel):
-    count = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    platform_target = TextField()
-    recorded_at = DateTimeField()
-
-    class Meta:
-        db_table = 'ci_platform_metrics'
-
-class CiProjectMonthlyUsages(BaseModel):
-    amount_used = DecimalField()
-    date = DateField()
-    id = BigIntegerField(primary_key=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    shared_runners_duration = IntegerField()
-
-    class Meta:
-        db_table = 'ci_project_monthly_usages'
-        indexes = (
-            (('project', 'date'), True),
-        )
-
-class CiResources(BaseModel):
-    build = ForeignKeyField(db_column='build_id', null=True, rel_model=CiBuilds, to_field='id')
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    resource_group = ForeignKeyField(db_column='resource_group_id', rel_model=CiResourceGroups, to_field='id')
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'ci_resources'
-        indexes = (
-            (('resource_group', 'build'), True),
-        )
-
-class CiRunners(BaseModel):
-    access_level = IntegerField()
-    active = BooleanField()
-    architecture = CharField(null=True)
-    config = JSONField()
-    contacted_at = DateTimeField(null=True)
-    created_at = DateTimeField(null=True)
-    description = CharField(index=True, null=True)
-    ip_address = CharField(null=True)
-    locked = BooleanField(index=True)
-    maximum_timeout = IntegerField(null=True)
-    name = CharField(null=True)
-    platform = CharField(null=True)
-    private_projects_minutes_cost_factor = FloatField()
-    public_projects_minutes_cost_factor = FloatField()
-    revision = CharField(null=True)
-    run_untagged = BooleanField()
-    runner_type = IntegerField(index=True)
-    token = CharField(index=True, null=True)
-    token_encrypted = CharField(index=True, null=True)
-    updated_at = DateTimeField(null=True)
-    version = CharField(null=True)
-
-    class Meta:
-        db_table = 'ci_runners'
-        indexes = (
-            (('id', 'contacted_at'), False),
-            (('id', 'contacted_at'), False),
-            (('id', 'created_at'), False),
-            (('id', 'created_at'), False),
-        )
-
-class CiRunnerNamespaces(BaseModel):
-    namespace = ForeignKeyField(db_column='namespace_id', null=True, rel_model=Namespaces, to_field='id')
-    runner = ForeignKeyField(db_column='runner_id', null=True, rel_model=CiRunners, to_field='id')
-
-    class Meta:
-        db_table = 'ci_runner_namespaces'
-        indexes = (
-            (('runner', 'namespace'), True),
-        )
-
-class CiRunnerProjects(BaseModel):
-    created_at = DateTimeField(null=True)
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    runner = IntegerField(db_column='runner_id', index=True)
-    updated_at = DateTimeField(null=True)
-
-    class Meta:
-        db_table = 'ci_runner_projects'
-
-class CiRunningBuilds(BaseModel):
-    build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id', unique=True)
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    runner = ForeignKeyField(db_column='runner_id', rel_model=CiRunners, to_field='id')
-    runner_type = IntegerField()
-
-    class Meta:
-        db_table = 'ci_running_builds'
-
-class CiSourcesPipelines(BaseModel):
-    pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    source_job = ForeignKeyField(db_column='source_job_id', null=True, rel_model=CiBuilds, to_field='id')
-    source_pipeline = ForeignKeyField(db_column='source_pipeline_id', null=True, rel_model=CiPipelines, related_name='ci_pipelines_source_pipeline_set', to_field='id')
-    source_project = ForeignKeyField(db_column='source_project_id', null=True, rel_model=Projects, related_name='projects_source_project_set', to_field='id')
-
-    class Meta:
-        db_table = 'ci_sources_pipelines'
-
-class CiSourcesProjects(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
-    source_project = ForeignKeyField(db_column='source_project_id', rel_model=Projects, to_field='id')
-
-    class Meta:
-        db_table = 'ci_sources_projects'
-        indexes = (
-            (('pipeline', 'source_project'), True),
-        )
-
-class CiSubscriptionsProjects(BaseModel):
-    downstream_project = ForeignKeyField(db_column='downstream_project_id', rel_model=Projects, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    upstream_project = ForeignKeyField(db_column='upstream_project_id', rel_model=Projects, related_name='projects_upstream_project_set', to_field='id')
-
-    class Meta:
-        db_table = 'ci_subscriptions_projects'
-        indexes = (
-            (('downstream_project', 'upstream_project'), True),
-        )
-
-class CiTriggers(BaseModel):
-    created_at = DateTimeField(null=True)
-    description = CharField(null=True)
-    owner = ForeignKeyField(db_column='owner_id', rel_model=Users, to_field='id')
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    ref = CharField(null=True)
-    token = CharField(null=True)
-    updated_at = DateTimeField(null=True)
-
-    class Meta:
-        db_table = 'ci_triggers'
-
-class CiTriggerRequests(BaseModel):
-    commit = IntegerField(db_column='commit_id', index=True, null=True)
-    created_at = DateTimeField(null=True)
-    trigger = ForeignKeyField(db_column='trigger_id', rel_model=CiTriggers, to_field='id')
-    updated_at = DateTimeField(null=True)
-    variables = TextField(null=True)
-
-    class Meta:
-        db_table = 'ci_trigger_requests'
-        indexes = (
-            (('id', 'trigger'), False),
-        )
-
-class CiUnitTests(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    key_hash = TextField()
-    name = TextField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    suite_name = TextField()
-
-    class Meta:
-        db_table = 'ci_unit_tests'
-        indexes = (
-            (('project', 'key_hash'), True),
-        )
-
-class CiUnitTestFailures(BaseModel):
-    build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
-    failed_at = DateTimeField(index=True)
-    id = BigIntegerField(primary_key=True)
-    unit_test = ForeignKeyField(db_column='unit_test_id', rel_model=CiUnitTests, to_field='id')
-
-    class Meta:
-        db_table = 'ci_unit_test_failures'
-        indexes = (
-            (('failed_at', 'unit_test', 'build'), True),
-        )
-
-class CiVariables(BaseModel):
-    encrypted_value = TextField(null=True)
-    encrypted_value_iv = CharField(null=True)
-    encrypted_value_salt = CharField(null=True)
-    environment_scope = CharField()
-    key = CharField(index=True)
-    masked = BooleanField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    protected = BooleanField()
-    value = TextField(null=True)
-    variable_type = IntegerField()
-
-    class Meta:
-        db_table = 'ci_variables'
-        indexes = (
-            (('key', 'project', 'environment_scope'), True),
-        )
-
-class ClusterAgentTokens(BaseModel):
-    agent = ForeignKeyField(db_column='agent_id', rel_model=ClusterAgents, to_field='id')
-    created_at = DateTimeField()
-    created_by_user = ForeignKeyField(db_column='created_by_user_id', null=True, rel_model=Users, to_field='id')
-    description = TextField(null=True)
-    id = BigIntegerField(primary_key=True)
-    last_used_at = DateTimeField(null=True)
-    name = TextField(null=True)
-    token_encrypted = TextField(unique=True)
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'cluster_agent_tokens'
-        indexes = (
-            (('agent', 'last_used_at'), False),
-        )
-
-class Clusters(BaseModel):
-    cleanup_status = IntegerField()
-    cleanup_status_reason = TextField(null=True)
-    cluster_type = IntegerField()
-    created_at = DateTimeField()
-    domain = CharField(null=True)
-    enabled = BooleanField(null=True)
-    environment_scope = CharField()
-    helm_major_version = IntegerField()
-    managed = BooleanField()
-    management_project = ForeignKeyField(db_column='management_project_id', null=True, rel_model=Projects, to_field='id')
-    name = CharField()
-    namespace_per_environment = BooleanField()
-    platform_type = IntegerField(null=True)
-    provider_type = IntegerField(null=True)
-    updated_at = DateTimeField()
-    user = ForeignKeyField(db_column='user_id', null=True, rel_model=Users, to_field='id')
-
-    class Meta:
-        db_table = 'clusters'
-        indexes = (
-            (('id', 'created_at', 'enabled', 'cluster_type'), False),
-            (('id', 'provider_type', 'enabled'), False),
-        )
-
-class ClusterGroups(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id')
-    group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
-
-    class Meta:
-        db_table = 'cluster_groups'
-        indexes = (
-            (('cluster', 'group'), True),
-        )
-
-class ClusterPlatformsKubernetes(BaseModel):
-    api_url = TextField(null=True)
-    authorization_type = IntegerField(null=True)
-    ca_cert = TextField(null=True)
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    encrypted_password = TextField(null=True)
-    encrypted_password_iv = CharField(null=True)
-    encrypted_token = TextField(null=True)
-    encrypted_token_iv = CharField(null=True)
-    namespace = CharField(null=True)
-    updated_at = DateTimeField()
-    username = CharField(null=True)
-
-    class Meta:
-        db_table = 'cluster_platforms_kubernetes'
-
-class ClusterProjects(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id')
-    created_at = DateTimeField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'cluster_projects'
-
-class ClusterProvidersAws(BaseModel):
-    access_key = CharField(db_column='access_key_id', null=True)
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    encrypted_secret_access_key = TextField(null=True)
-    encrypted_secret_access_key_iv = CharField(null=True)
-    id = BigIntegerField(primary_key=True)
-    instance_type = CharField()
-    key_name = CharField()
-    kubernetes_version = TextField()
-    num_nodes = IntegerField()
-    region = CharField()
-    role_arn = CharField()
-    security_group = CharField(db_column='security_group_id')
-    session_token = TextField(null=True)
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    subnet_ids = UnknownField()  # ARRAY
-    updated_at = DateTimeField()
-    vpc = CharField(db_column='vpc_id')
-
-    class Meta:
-        db_table = 'cluster_providers_aws'
-        indexes = (
-            (('cluster', 'status'), False),
-        )
-
-class ClusterProvidersGcp(BaseModel):
-    cloud_run = BooleanField(index=True)
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    encrypted_access_token = TextField(null=True)
-    encrypted_access_token_iv = CharField(null=True)
-    endpoint = CharField(null=True)
-    gcp_project = CharField(db_column='gcp_project_id')
-    legacy_abac = BooleanField()
-    machine_type = CharField(null=True)
-    num_nodes = IntegerField()
-    operation = CharField(db_column='operation_id', null=True)
-    status = IntegerField(null=True)
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    zone = CharField()
-
-    class Meta:
-        db_table = 'cluster_providers_gcp'
-
-class ClustersApplicationsCertManagers(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    email = CharField()
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    version = CharField()
-
-    class Meta:
-        db_table = 'clusters_applications_cert_managers'
-
-class ClustersApplicationsCilium(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'clusters_applications_cilium'
-
-class ClustersApplicationsCrossplane(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    stack = CharField()
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    version = CharField()
-
-    class Meta:
-        db_table = 'clusters_applications_crossplane'
-
-class ClustersApplicationsElasticStacks(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    version = CharField()
-
-    class Meta:
-        db_table = 'clusters_applications_elastic_stacks'
-
-class ClustersApplicationsHelm(BaseModel):
-    ca_cert = TextField(null=True)
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    encrypted_ca_key = TextField(null=True)
-    encrypted_ca_key_iv = TextField(null=True)
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    version = CharField()
-
-    class Meta:
-        db_table = 'clusters_applications_helm'
-
-class ClustersApplicationsIngress(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    cluster_ip = CharField(null=True)
-    created_at = DateTimeField()
-    external_hostname = CharField(null=True)
-    external_ip = CharField(null=True)
-    ingress_type = IntegerField()
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    version = CharField()
-
-    class Meta:
-        db_table = 'clusters_applications_ingress'
-
-class OauthApplications(BaseModel):
-    confidential = BooleanField()
-    created_at = DateTimeField(null=True)
-    expire_access_tokens = BooleanField()
-    name = CharField()
-    owner = IntegerField(db_column='owner_id', null=True)
-    owner_type = CharField(null=True)
-    redirect_uri = TextField()
-    scopes = CharField()
-    secret = CharField()
-    trusted = BooleanField()
-    uid = CharField(unique=True)
-    updated_at = DateTimeField(null=True)
-
-    class Meta:
-        db_table = 'oauth_applications'
-        indexes = (
-            (('owner', 'owner_type'), False),
-        )
-
-class ClustersApplicationsJupyter(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    hostname = CharField(null=True)
-    oauth_application = ForeignKeyField(db_column='oauth_application_id', null=True, rel_model=OauthApplications, to_field='id')
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    version = CharField()
-
-    class Meta:
-        db_table = 'clusters_applications_jupyter'
-
-class ClustersApplicationsKnative(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    external_hostname = CharField(null=True)
-    external_ip = CharField(null=True)
-    hostname = CharField(null=True)
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    version = CharField()
-
-    class Meta:
-        db_table = 'clusters_applications_knative'
-
-class ClustersApplicationsPrometheus(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    encrypted_alert_manager_token = CharField(null=True)
-    encrypted_alert_manager_token_iv = CharField(null=True)
-    healthy = BooleanField(null=True)
-    last_update_started_at = DateTimeField(null=True)
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    version = CharField()
-
-    class Meta:
-        db_table = 'clusters_applications_prometheus'
-
-class ClustersApplicationsRunners(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
-    created_at = DateTimeField()
-    privileged = BooleanField()
-    runner = ForeignKeyField(db_column='runner_id', null=True, rel_model=CiRunners, to_field='id')
-    status = IntegerField()
-    status_reason = TextField(null=True)
-    updated_at = DateTimeField()
-    version = CharField()
-
-    class Meta:
-        db_table = 'clusters_applications_runners'
-
-class ClustersIntegrationElasticstack(BaseModel):
-    chart_version = TextField(null=True)
-    cluster = ForeignKeyField(db_column='cluster_id', primary_key=True, rel_model=Clusters, to_field='id')
-    created_at = DateTimeField()
-    enabled = BooleanField()
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'clusters_integration_elasticstack'
-        indexes = (
-            (('created_at', 'cluster', 'enabled'), False),
-        )
-
-class ClustersIntegrationPrometheus(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', primary_key=True, rel_model=Clusters, to_field='id')
-    created_at = DateTimeField()
-    enabled = BooleanField()
-    encrypted_alert_manager_token = TextField(null=True)
-    encrypted_alert_manager_token_iv = TextField(null=True)
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'clusters_integration_prometheus'
-        indexes = (
-            (('created_at', 'cluster', 'enabled'), False),
-        )
-
-class ClustersKubernetesNamespaces(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id')
-    cluster_project = ForeignKeyField(db_column='cluster_project_id', null=True, rel_model=ClusterProjects, to_field='id')
-    created_at = DateTimeField()
-    encrypted_service_account_token = TextField(null=True)
-    encrypted_service_account_token_iv = CharField(null=True)
-    environment = ForeignKeyField(db_column='environment_id', null=True, rel_model=Environments, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    namespace = CharField()
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    service_account_name = CharField(null=True)
-    updated_at = DateTimeField()
-
-    class Meta:
-        db_table = 'clusters_kubernetes_namespaces'
-        indexes = (
-            (('cluster', 'namespace'), True),
-            (('cluster', 'project', 'environment'), True),
-        )
-
-class CommitUserMentions(BaseModel):
-    commit = CharField(db_column='commit_id')
-    id = BigIntegerField(primary_key=True)
-    mentioned_groups_ids = UnknownField(null=True)  # ARRAY
-    mentioned_projects_ids = UnknownField(null=True)  # ARRAY
-    mentioned_users_ids = UnknownField(null=True)  # ARRAY
-    note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id', unique=True)
-
-    class Meta:
-        db_table = 'commit_user_mentions'
-        indexes = (
-            (('note', 'commit'), True),
-        )
+# class CiStages(BaseModel):
+#     created_at = DateTimeField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     lock_version = IntegerField(null=True)
+#     name = CharField(null=True)
+#     pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
+#     position = IntegerField(null=True)
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     status = IntegerField(null=True)
+#     updated_at = DateTimeField(null=True)
+
+#     class Meta:
+#         db_table = 'ci_stages'
+#         indexes = (
+#             (('id', 'pipeline'), False),
+#             (('pipeline', 'name'), True),
+#             (('pipeline', 'position'), False),
+#         )
+
+# class CiResourceGroups(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     key = CharField()
+#     process_mode = IntegerField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'ci_resource_groups'
+#         indexes = (
+#             (('project', 'key'), True),
+#         )
+
+# class CiBuilds(BaseModel):
+#     allow_failure = BooleanField()
+#     artifacts_expire_at = DateTimeField(null=True)
+#     auto_canceled_by = ForeignKeyField(db_column='auto_canceled_by_id', null=True, rel_model=CiPipelines, to_field='id')
+#     commit = ForeignKeyField(db_column='commit_id', null=True, rel_model=CiPipelines, related_name='ci_pipelines_commit_set', to_field='id')
+#     coverage = FloatField(null=True)
+#     coverage_regex = CharField(null=True)
+#     created_at = DateTimeField(null=True)
+#     description = CharField(null=True)
+#     environment = CharField(null=True)
+#     erased_at = DateTimeField(null=True)
+#     erased_by = IntegerField(db_column='erased_by_id', null=True)
+#     failure_reason = IntegerField(null=True)
+#     finished_at = DateTimeField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     lock_version = IntegerField(null=True)
+#     name = CharField(null=True)
+#     options = TextField(null=True)
+#     processed = BooleanField(null=True)
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     protected = BooleanField(null=True)
+#     queued_at = DateTimeField(index=True, null=True)
+#     ref = CharField(null=True)
+#     resource_group = ForeignKeyField(db_column='resource_group_id', null=True, rel_model=CiResourceGroups, to_field='id')
+#     retried = BooleanField(null=True)
+#     runner = IntegerField(db_column='runner_id', index=True, null=True)
+#     scheduled_at = DateTimeField(index=True, null=True)
+#     scheduling_type = IntegerField(null=True)
+#     stage = CharField(null=True)
+#     stage_id = ForeignKeyField(db_column='stage_id', null=True, rel_model=CiStages, to_field='id')
+#     stage_idx = IntegerField(null=True)
+#     started_at = DateTimeField(null=True)
+#     status = CharField(null=True)
+#     tag = BooleanField(null=True)
+#     target_url = CharField(null=True)
+#     token = CharField(null=True, unique=True)
+#     token_encrypted = CharField(null=True, unique=True)
+#     trace = TextField(null=True)
+#     trigger_request = IntegerField(db_column='trigger_request_id', null=True)
+#     type = CharField(null=True)
+#     updated_at = DateTimeField(index=True, null=True)
+#     upstream_pipeline = ForeignKeyField(db_column='upstream_pipeline_id', null=True, rel_model=CiPipelines, related_name='ci_pipelines_upstream_pipeline_set', to_field='id')
+#     user = IntegerField(db_column='user_id', index=True, null=True)
+#     waiting_for_resource_at = DateTimeField(null=True)
+#     when = CharField(null=True)
+#     yaml_variables = TextField(null=True)
+
+#     class Meta:
+#         db_table = 'ci_builds'
+#         indexes = (
+#             (('created_at', 'name', 'user'), False),
+#             (('created_at', 'project', 'status'), False),
+#             (('created_at', 'user'), False),
+#             (('id', 'commit', 'artifacts_expire_at'), False),
+#             (('name', 'id'), False),
+#             (('name', 'ref', 'project'), False),
+#             (('name', 'user'), False),
+#             (('project', 'id'), False),
+#             (('ref', 'type', 'commit', 'name'), False),
+#             (('resource_group', 'id'), False),
+#             (('runner', 'id'), False),
+#             (('runner', 'project', 'id'), False),
+#             (('stage_idx', 'commit', 'created_at'), False),
+#             (('status', 'commit', 'resource_group'), False),
+#             (('status', 'project'), False),
+#             (('type', 'commit', 'ref'), False),
+#             (('type', 'status', 'commit'), False),
+#             (('type', 'status', 'runner'), False),
+#         )
+
+# class CiBuildNeeds(BaseModel):
+#     artifacts = BooleanField()
+#     build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
+#     name = TextField()
+#     optional = BooleanField()
+
+#     class Meta:
+#         db_table = 'ci_build_needs'
+#         indexes = (
+#             (('name', 'build'), True),
+#         )
+
+# class CiBuildPendingStates(BaseModel):
+#     build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     failure_reason = IntegerField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     state = IntegerField(null=True)
+#     trace_bytesize = BigIntegerField(null=True)
+#     trace_checksum = BlobField(null=True)
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'ci_build_pending_states'
+
+# class CiBuildReportResults(BaseModel):
+#     build = ForeignKeyField(db_column='build_id', primary_key=True, rel_model=CiBuilds, to_field='id')
+#     data = JSONField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+
+#     class Meta:
+#         db_table = 'ci_build_report_results'
+
+# class CiBuildTraceChunks(BaseModel):
+#     build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
+#     checksum = BlobField(null=True)
+#     chunk_index = IntegerField()
+#     data_store = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     lock_version = IntegerField()
+#     raw_data = BlobField(null=True)
+
+#     class Meta:
+#         db_table = 'ci_build_trace_chunks'
+#         indexes = (
+#             (('chunk_index', 'build'), True),
+#         )
+
+# class CiJobArtifacts(BaseModel):
+#     created_at = DateTimeField()
+#     expire_at = DateTimeField(index=True, null=True)
+#     file = CharField(null=True)
+#     file_format = IntegerField(null=True)
+#     file_location = IntegerField(null=True)
+#     file_sha256 = BlobField(null=True)
+#     file_store = IntegerField(index=True, null=True)
+#     file_type = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     job = ForeignKeyField(db_column='job_id', rel_model=CiBuilds, to_field='id')
+#     locked = IntegerField(null=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     size = BigIntegerField(null=True)
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'ci_job_artifacts'
+#         indexes = (
+#             (('file_type', 'created_at', 'project'), False),
+#             (('file_type', 'job'), True),
+#             (('job', 'expire_at'), False),
+#             (('project', 'id'), False),
+#         )
+
+# class CiBuildTraceMetadata(BaseModel):
+#     archival_attempts = IntegerField()
+#     archived_at = DateTimeField(null=True)
+#     build = ForeignKeyField(db_column='build_id', primary_key=True, rel_model=CiBuilds, to_field='id')
+#     checksum = BlobField(null=True)
+#     last_archival_attempt_at = DateTimeField(null=True)
+#     remote_checksum = BlobField(null=True)
+#     trace_artifact = ForeignKeyField(db_column='trace_artifact_id', null=True, rel_model=CiJobArtifacts, to_field='id')
+
+#     class Meta:
+#         db_table = 'ci_build_trace_metadata'
+
+# class CiBuildsMetadata(BaseModel):
+#     build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
+#     config_options = JSONField(null=True)
+#     config_variables = JSONField(null=True)
+#     environment_auto_stop_in = CharField(null=True)
+#     expanded_environment_name = CharField(null=True)
+#     has_exposed_artifacts = BooleanField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     interruptible = BooleanField(null=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     runner_features = JSONField()
+#     secrets = JSONField()
+#     timeout = IntegerField(null=True)
+#     timeout_source = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_builds_metadata'
+#         indexes = (
+#             (('build', 'id'), False),
+#         )
+
+# class CiBuildsRunnerSession(BaseModel):
+#     authorization = CharField(null=True)
+#     build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id', unique=True)
+#     certificate = CharField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     url = CharField()
+
+#     class Meta:
+#         db_table = 'ci_builds_runner_session'
+
+# class CiDailyBuildGroupReportResults(BaseModel):
+#     data = JSONField()
+#     date = DateField()
+#     default_branch = BooleanField()
+#     group = ForeignKeyField(db_column='group_id', null=True, rel_model=Namespaces, to_field='id')
+#     group_name = TextField()
+#     id = BigIntegerField(primary_key=True)
+#     last_pipeline = ForeignKeyField(db_column='last_pipeline_id', rel_model=CiPipelines, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     ref_path = TextField()
+
+#     class Meta:
+#         db_table = 'ci_daily_build_group_report_results'
+#         indexes = (
+#             (('date', 'project'), False),
+#             (('group_name', 'date', 'project', 'ref_path'), True),
+#         )
+
+# class CiDeletedObjects(BaseModel):
+#     file = TextField()
+#     file_store = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     pick_up_at = DateTimeField(index=True)
+#     store_dir = TextField()
+
+#     class Meta:
+#         db_table = 'ci_deleted_objects'
+
+# class CiFreezePeriods(BaseModel):
+#     created_at = DateTimeField()
+#     cron_timezone = CharField()
+#     freeze_end = CharField()
+#     freeze_start = CharField()
+#     id = BigIntegerField(primary_key=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'ci_freeze_periods'
+
+# class CiGroupVariables(BaseModel):
+#     created_at = DateTimeField()
+#     encrypted_value = TextField(null=True)
+#     encrypted_value_iv = CharField(null=True)
+#     encrypted_value_salt = CharField(null=True)
+#     environment_scope = TextField()
+#     group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
+#     key = CharField()
+#     masked = BooleanField()
+#     protected = BooleanField()
+#     updated_at = DateTimeField()
+#     value = TextField(null=True)
+#     variable_type = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_group_variables'
+#         indexes = (
+#             (('key', 'group', 'environment_scope'), True),
+#         )
+
+# class CiInstanceVariables(BaseModel):
+#     encrypted_value = TextField(null=True)
+#     encrypted_value_iv = TextField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     key = TextField(unique=True)
+#     masked = BooleanField(null=True)
+#     protected = BooleanField(null=True)
+#     variable_type = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_instance_variables'
+
+# class CiJobTokenProjectScopeLinks(BaseModel):
+#     added_by = ForeignKeyField(db_column='added_by_id', null=True, rel_model=Users, to_field='id')
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     source_project = ForeignKeyField(db_column='source_project_id', rel_model=Projects, to_field='id')
+#     target_project = ForeignKeyField(db_column='target_project_id', rel_model=Projects, related_name='projects_target_project_set', to_field='id')
+
+#     class Meta:
+#         db_table = 'ci_job_token_project_scope_links'
+#         indexes = (
+#             (('source_project', 'target_project'), True),
+#         )
+
+# class CiJobVariables(BaseModel):
+#     encrypted_value = TextField(null=True)
+#     encrypted_value_iv = CharField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     job = ForeignKeyField(db_column='job_id', rel_model=CiBuilds, to_field='id')
+#     key = CharField()
+#     source = IntegerField()
+#     variable_type = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_job_variables'
+#         indexes = (
+#             (('key', 'job'), True),
+#         )
+
+# class CiMinutesAdditionalPacks(BaseModel):
+#     created_at = DateTimeField()
+#     expires_at = DateField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     namespace = ForeignKeyField(db_column='namespace_id', rel_model=Namespaces, to_field='id')
+#     number_of_minutes = IntegerField()
+#     purchase_xid = TextField(null=True)
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'ci_minutes_additional_packs'
+#         indexes = (
+#             (('namespace', 'purchase_xid'), False),
+#         )
+
+# class CiNamespaceMonthlyUsages(BaseModel):
+#     additional_amount_available = IntegerField()
+#     amount_used = DecimalField()
+#     date = DateField()
+#     id = BigIntegerField(primary_key=True)
+#     namespace = BigIntegerField(db_column='namespace_id')
+#     notification_level = IntegerField()
+#     shared_runners_duration = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_namespace_monthly_usages'
+#         indexes = (
+#             (('namespace', 'date'), True),
+#         )
+
+# class CiPendingBuilds(BaseModel):
+#     build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     instance_runners_enabled = BooleanField()
+#     minutes_exceeded = BooleanField()
+#     namespace = ForeignKeyField(db_column='namespace_id', null=True, rel_model=Namespaces, to_field='id')
+#     #namespace_traversal_ids = UnknownField(index=True, null=True)  # ARRAY
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     protected = BooleanField()
+#     #tag_ids = UnknownField(index=True, null=True)  # ARRAY
+
+#     class Meta:
+#         db_table = 'ci_pending_builds'
+
+# class CiPipelineArtifacts(BaseModel):
+#     created_at = DateTimeField()
+#     expire_at = DateTimeField(index=True, null=True)
+#     file = TextField(null=True)
+#     file_format = IntegerField()
+#     file_store = IntegerField()
+#     file_type = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     size = IntegerField()
+#     updated_at = DateTimeField()
+#     verification_checksum = BlobField(null=True)
+#     verification_failure = TextField(null=True)
+#     verification_retry_at = DateTimeField(index=True, null=True)
+#     verification_retry_count = IntegerField(null=True)
+#     verification_started_at = DateTimeField(null=True)
+#     verification_state = IntegerField(index=True)
+#     verified_at = DateTimeField(index=True, null=True)
+
+#     class Meta:
+#         db_table = 'ci_pipeline_artifacts'
+#         indexes = (
+#             (('pipeline', 'file_type'), True),
+#         )
+
+# class CiPipelineChatData(BaseModel):
+#     chat_name = ForeignKeyField(db_column='chat_name_id', rel_model=ChatNames, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id', unique=True)
+#     response_url = TextField()
+
+#     class Meta:
+#         db_table = 'ci_pipeline_chat_data'
+
+# class CiPipelineMessages(BaseModel):
+#     content = TextField()
+#     id = BigIntegerField(primary_key=True)
+#     pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
+#     severity = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_pipeline_messages'
+
+# class CiPipelineScheduleVariables(BaseModel):
+#     created_at = DateTimeField(null=True)
+#     encrypted_value = TextField(null=True)
+#     encrypted_value_iv = CharField(null=True)
+#     encrypted_value_salt = CharField(null=True)
+#     key = CharField()
+#     pipeline_schedule = ForeignKeyField(db_column='pipeline_schedule_id', rel_model=CiPipelineSchedules, to_field='id')
+#     updated_at = DateTimeField(null=True)
+#     value = TextField(null=True)
+#     variable_type = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_pipeline_schedule_variables'
+#         indexes = (
+#             (('key', 'pipeline_schedule'), True),
+#         )
+
+# class CiPipelineVariables(BaseModel):
+#     encrypted_value = TextField(null=True)
+#     encrypted_value_iv = CharField(null=True)
+#     encrypted_value_salt = CharField(null=True)
+#     key = CharField()
+#     pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
+#     value = TextField(null=True)
+#     variable_type = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_pipeline_variables'
+#         indexes = (
+#             (('key', 'pipeline'), True),
+#         )
+
+# class CiPipelinesConfig(BaseModel):
+#     content = TextField()
+#     pipeline = ForeignKeyField(db_column='pipeline_id', primary_key=True, rel_model=CiPipelines, to_field='id')
+
+#     class Meta:
+#         db_table = 'ci_pipelines_config'
+
+# class CiPlatformMetrics(BaseModel):
+#     count = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     platform_target = TextField()
+#     recorded_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'ci_platform_metrics'
+
+# class CiProjectMonthlyUsages(BaseModel):
+#     amount_used = DecimalField()
+#     date = DateField()
+#     id = BigIntegerField(primary_key=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     shared_runners_duration = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_project_monthly_usages'
+#         indexes = (
+#             (('project', 'date'), True),
+#         )
+
+# class CiResources(BaseModel):
+#     build = ForeignKeyField(db_column='build_id', null=True, rel_model=CiBuilds, to_field='id')
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     resource_group = ForeignKeyField(db_column='resource_group_id', rel_model=CiResourceGroups, to_field='id')
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'ci_resources'
+#         indexes = (
+#             (('resource_group', 'build'), True),
+#         )
+
+# class CiRunners(BaseModel):
+#     access_level = IntegerField()
+#     active = BooleanField()
+#     architecture = CharField(null=True)
+#     config = JSONField()
+#     contacted_at = DateTimeField(null=True)
+#     created_at = DateTimeField(null=True)
+#     description = CharField(index=True, null=True)
+#     ip_address = CharField(null=True)
+#     locked = BooleanField(index=True)
+#     maximum_timeout = IntegerField(null=True)
+#     name = CharField(null=True)
+#     platform = CharField(null=True)
+#     private_projects_minutes_cost_factor = FloatField()
+#     public_projects_minutes_cost_factor = FloatField()
+#     revision = CharField(null=True)
+#     run_untagged = BooleanField()
+#     runner_type = IntegerField(index=True)
+#     token = CharField(index=True, null=True)
+#     token_encrypted = CharField(index=True, null=True)
+#     updated_at = DateTimeField(null=True)
+#     version = CharField(null=True)
+
+#     class Meta:
+#         db_table = 'ci_runners'
+#         indexes = (
+#             (('id', 'contacted_at'), False),
+#             (('id', 'contacted_at'), False),
+#             (('id', 'created_at'), False),
+#             (('id', 'created_at'), False),
+#         )
+
+# class CiRunnerNamespaces(BaseModel):
+#     namespace = ForeignKeyField(db_column='namespace_id', null=True, rel_model=Namespaces, to_field='id')
+#     runner = ForeignKeyField(db_column='runner_id', null=True, rel_model=CiRunners, to_field='id')
+
+#     class Meta:
+#         db_table = 'ci_runner_namespaces'
+#         indexes = (
+#             (('runner', 'namespace'), True),
+#         )
+
+# class CiRunnerProjects(BaseModel):
+#     created_at = DateTimeField(null=True)
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     runner = IntegerField(db_column='runner_id', index=True)
+#     updated_at = DateTimeField(null=True)
+
+#     class Meta:
+#         db_table = 'ci_runner_projects'
+
+# class CiRunningBuilds(BaseModel):
+#     build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     runner = ForeignKeyField(db_column='runner_id', rel_model=CiRunners, to_field='id')
+#     runner_type = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_running_builds'
+
+# class CiSourcesPipelines(BaseModel):
+#     pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     source_job = ForeignKeyField(db_column='source_job_id', null=True, rel_model=CiBuilds, to_field='id')
+#     source_pipeline = ForeignKeyField(db_column='source_pipeline_id', null=True, rel_model=CiPipelines, related_name='ci_pipelines_source_pipeline_set', to_field='id')
+#     source_project = ForeignKeyField(db_column='source_project_id', null=True, rel_model=Projects, related_name='projects_source_project_set', to_field='id')
+
+#     class Meta:
+#         db_table = 'ci_sources_pipelines'
+
+# class CiSourcesProjects(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
+#     source_project = ForeignKeyField(db_column='source_project_id', rel_model=Projects, to_field='id')
+
+#     class Meta:
+#         db_table = 'ci_sources_projects'
+#         indexes = (
+#             (('pipeline', 'source_project'), True),
+#         )
+
+# class CiSubscriptionsProjects(BaseModel):
+#     downstream_project = ForeignKeyField(db_column='downstream_project_id', rel_model=Projects, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     upstream_project = ForeignKeyField(db_column='upstream_project_id', rel_model=Projects, related_name='projects_upstream_project_set', to_field='id')
+
+#     class Meta:
+#         db_table = 'ci_subscriptions_projects'
+#         indexes = (
+#             (('downstream_project', 'upstream_project'), True),
+#         )
+
+# class CiTriggers(BaseModel):
+#     created_at = DateTimeField(null=True)
+#     description = CharField(null=True)
+#     owner = ForeignKeyField(db_column='owner_id', rel_model=Users, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     ref = CharField(null=True)
+#     token = CharField(null=True)
+#     updated_at = DateTimeField(null=True)
+
+#     class Meta:
+#         db_table = 'ci_triggers'
+
+# class CiTriggerRequests(BaseModel):
+#     commit = IntegerField(db_column='commit_id', index=True, null=True)
+#     created_at = DateTimeField(null=True)
+#     trigger = ForeignKeyField(db_column='trigger_id', rel_model=CiTriggers, to_field='id')
+#     updated_at = DateTimeField(null=True)
+#     variables = TextField(null=True)
+
+#     class Meta:
+#         db_table = 'ci_trigger_requests'
+#         indexes = (
+#             (('id', 'trigger'), False),
+#         )
+
+# class CiUnitTests(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     key_hash = TextField()
+#     name = TextField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     suite_name = TextField()
+
+#     class Meta:
+#         db_table = 'ci_unit_tests'
+#         indexes = (
+#             (('project', 'key_hash'), True),
+#         )
+
+# class CiUnitTestFailures(BaseModel):
+#     build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
+#     failed_at = DateTimeField(index=True)
+#     id = BigIntegerField(primary_key=True)
+#     unit_test = ForeignKeyField(db_column='unit_test_id', rel_model=CiUnitTests, to_field='id')
+
+#     class Meta:
+#         db_table = 'ci_unit_test_failures'
+#         indexes = (
+#             (('failed_at', 'unit_test', 'build'), True),
+#         )
+
+# class CiVariables(BaseModel):
+#     encrypted_value = TextField(null=True)
+#     encrypted_value_iv = CharField(null=True)
+#     encrypted_value_salt = CharField(null=True)
+#     environment_scope = CharField()
+#     key = CharField(index=True)
+#     masked = BooleanField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     protected = BooleanField()
+#     value = TextField(null=True)
+#     variable_type = IntegerField()
+
+#     class Meta:
+#         db_table = 'ci_variables'
+#         indexes = (
+#             (('key', 'project', 'environment_scope'), True),
+#         )
+
+# class ClusterAgentTokens(BaseModel):
+#     agent = ForeignKeyField(db_column='agent_id', rel_model=ClusterAgents, to_field='id')
+#     created_at = DateTimeField()
+#     created_by_user = ForeignKeyField(db_column='created_by_user_id', null=True, rel_model=Users, to_field='id')
+#     description = TextField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     last_used_at = DateTimeField(null=True)
+#     name = TextField(null=True)
+#     token_encrypted = TextField(unique=True)
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'cluster_agent_tokens'
+#         indexes = (
+#             (('agent', 'last_used_at'), False),
+#         )
+
+# class Clusters(BaseModel):
+#     cleanup_status = IntegerField()
+#     cleanup_status_reason = TextField(null=True)
+#     cluster_type = IntegerField()
+#     created_at = DateTimeField()
+#     domain = CharField(null=True)
+#     enabled = BooleanField(null=True)
+#     environment_scope = CharField()
+#     helm_major_version = IntegerField()
+#     managed = BooleanField()
+#     management_project = ForeignKeyField(db_column='management_project_id', null=True, rel_model=Projects, to_field='id')
+#     name = CharField()
+#     namespace_per_environment = BooleanField()
+#     platform_type = IntegerField(null=True)
+#     provider_type = IntegerField(null=True)
+#     updated_at = DateTimeField()
+#     user = ForeignKeyField(db_column='user_id', null=True, rel_model=Users, to_field='id')
+
+#     class Meta:
+#         db_table = 'clusters'
+#         indexes = (
+#             (('id', 'created_at', 'enabled', 'cluster_type'), False),
+#             (('id', 'provider_type', 'enabled'), False),
+#         )
+
+# class ClusterGroups(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id')
+#     group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
+
+#     class Meta:
+#         db_table = 'cluster_groups'
+#         indexes = (
+#             (('cluster', 'group'), True),
+#         )
+
+# class ClusterPlatformsKubernetes(BaseModel):
+#     api_url = TextField(null=True)
+#     authorization_type = IntegerField(null=True)
+#     ca_cert = TextField(null=True)
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     encrypted_password = TextField(null=True)
+#     encrypted_password_iv = CharField(null=True)
+#     encrypted_token = TextField(null=True)
+#     encrypted_token_iv = CharField(null=True)
+#     namespace = CharField(null=True)
+#     updated_at = DateTimeField()
+#     username = CharField(null=True)
+
+#     class Meta:
+#         db_table = 'cluster_platforms_kubernetes'
+
+# class ClusterProjects(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id')
+#     created_at = DateTimeField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'cluster_projects'
+
+# class ClusterProvidersAws(BaseModel):
+#     access_key = CharField(db_column='access_key_id', null=True)
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     encrypted_secret_access_key = TextField(null=True)
+#     encrypted_secret_access_key_iv = CharField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     instance_type = CharField()
+#     key_name = CharField()
+#     kubernetes_version = TextField()
+#     num_nodes = IntegerField()
+#     region = CharField()
+#     role_arn = CharField()
+#     security_group = CharField(db_column='security_group_id')
+#     session_token = TextField(null=True)
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     #subnet_ids = UnknownField()  # ARRAY
+#     updated_at = DateTimeField()
+#     vpc = CharField(db_column='vpc_id')
+
+#     class Meta:
+#         db_table = 'cluster_providers_aws'
+#         indexes = (
+#             (('cluster', 'status'), False),
+#         )
+
+# class ClusterProvidersGcp(BaseModel):
+#     cloud_run = BooleanField(index=True)
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     encrypted_access_token = TextField(null=True)
+#     encrypted_access_token_iv = CharField(null=True)
+#     endpoint = CharField(null=True)
+#     gcp_project = CharField(db_column='gcp_project_id')
+#     legacy_abac = BooleanField()
+#     machine_type = CharField(null=True)
+#     num_nodes = IntegerField()
+#     operation = CharField(db_column='operation_id', null=True)
+#     status = IntegerField(null=True)
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     zone = CharField()
+
+#     class Meta:
+#         db_table = 'cluster_providers_gcp'
+
+# class ClustersApplicationsCertManagers(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     email = CharField()
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_cert_managers'
+
+# class ClustersApplicationsCilium(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_cilium'
+
+# class ClustersApplicationsCrossplane(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     stack = CharField()
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_crossplane'
+
+# class ClustersApplicationsElasticStacks(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_elastic_stacks'
+
+# class ClustersApplicationsHelm(BaseModel):
+#     ca_cert = TextField(null=True)
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     encrypted_ca_key = TextField(null=True)
+#     encrypted_ca_key_iv = TextField(null=True)
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_helm'
+
+# class ClustersApplicationsIngress(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     cluster_ip = CharField(null=True)
+#     created_at = DateTimeField()
+#     external_hostname = CharField(null=True)
+#     external_ip = CharField(null=True)
+#     ingress_type = IntegerField()
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_ingress'
+
+# class OauthApplications(BaseModel):
+#     confidential = BooleanField()
+#     created_at = DateTimeField(null=True)
+#     expire_access_tokens = BooleanField()
+#     name = CharField()
+#     owner = IntegerField(db_column='owner_id', null=True)
+#     owner_type = CharField(null=True)
+#     redirect_uri = TextField()
+#     scopes = CharField()
+#     secret = CharField()
+#     trusted = BooleanField()
+#     uid = CharField(unique=True)
+#     updated_at = DateTimeField(null=True)
+
+#     class Meta:
+#         db_table = 'oauth_applications'
+#         indexes = (
+#             (('owner', 'owner_type'), False),
+#         )
+
+# class ClustersApplicationsJupyter(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     hostname = CharField(null=True)
+#     oauth_application = ForeignKeyField(db_column='oauth_application_id', null=True, rel_model=OauthApplications, to_field='id')
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_jupyter'
+
+# class ClustersApplicationsKnative(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     external_hostname = CharField(null=True)
+#     external_ip = CharField(null=True)
+#     hostname = CharField(null=True)
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_knative'
+
+# class ClustersApplicationsPrometheus(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     encrypted_alert_manager_token = CharField(null=True)
+#     encrypted_alert_manager_token_iv = CharField(null=True)
+#     healthy = BooleanField(null=True)
+#     last_update_started_at = DateTimeField(null=True)
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_prometheus'
+
+# class ClustersApplicationsRunners(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     privileged = BooleanField()
+#     runner = ForeignKeyField(db_column='runner_id', null=True, rel_model=CiRunners, to_field='id')
+#     status = IntegerField()
+#     status_reason = TextField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField()
+
+#     class Meta:
+#         db_table = 'clusters_applications_runners'
+
+# class ClustersIntegrationElasticstack(BaseModel):
+#     chart_version = TextField(null=True)
+#     cluster = ForeignKeyField(db_column='cluster_id', primary_key=True, rel_model=Clusters, to_field='id')
+#     created_at = DateTimeField()
+#     enabled = BooleanField()
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'clusters_integration_elasticstack'
+#         indexes = (
+#             (('created_at', 'cluster', 'enabled'), False),
+#         )
+
+# class ClustersIntegrationPrometheus(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', primary_key=True, rel_model=Clusters, to_field='id')
+#     created_at = DateTimeField()
+#     enabled = BooleanField()
+#     encrypted_alert_manager_token = TextField(null=True)
+#     encrypted_alert_manager_token_iv = TextField(null=True)
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'clusters_integration_prometheus'
+#         indexes = (
+#             (('created_at', 'cluster', 'enabled'), False),
+#         )
+
+# class ClustersKubernetesNamespaces(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id')
+#     cluster_project = ForeignKeyField(db_column='cluster_project_id', null=True, rel_model=ClusterProjects, to_field='id')
+#     created_at = DateTimeField()
+#     encrypted_service_account_token = TextField(null=True)
+#     encrypted_service_account_token_iv = CharField(null=True)
+#     environment = ForeignKeyField(db_column='environment_id', null=True, rel_model=Environments, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     namespace = CharField()
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     service_account_name = CharField(null=True)
+#     updated_at = DateTimeField()
+
+#     class Meta:
+#         db_table = 'clusters_kubernetes_namespaces'
+#         indexes = (
+#             (('cluster', 'namespace'), True),
+#             (('cluster', 'project', 'environment'), True),
+#         )
+
+# class CommitUserMentions(BaseModel):
+#     commit = CharField(db_column='commit_id')
+#     id = BigIntegerField(primary_key=True)
+#     #mentioned_groups_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_projects_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_users_ids = UnknownField(null=True)  # ARRAY
+#     note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id', unique=True)
+
+#     class Meta:
+#         db_table = 'commit_user_mentions'
+#         indexes = (
+#             (('note', 'commit'), True),
+#         )
 
 class ComplianceManagementFrameworks(BaseModel):
     color = TextField()
@@ -3477,7 +3481,7 @@ class DastSiteProfiles(BaseModel):
     auth_username_field = TextField(null=True)
     created_at = DateTimeField()
     dast_site = ForeignKeyField(db_column='dast_site_id', rel_model=DastSites, to_field='id')
-    excluded_urls = UnknownField()  # ARRAY
+    #excluded_urls = UnknownField()  # ARRAY
     id = BigIntegerField(primary_key=True)
     name = TextField()
     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
@@ -3527,258 +3531,258 @@ class DastProfileSchedules(BaseModel):
             (('next_run_at', 'active'), False),
         )
 
-class DastProfilesPipelines(BaseModel):
-    ci_pipeline = ForeignKeyField(db_column='ci_pipeline_id', rel_model=CiPipelines, to_field='id', unique=True)
-    dast_profile = ForeignKeyField(db_column='dast_profile_id', rel_model=DastProfiles, to_field='id')
+# class DastProfilesPipelines(BaseModel):
+#     ci_pipeline = ForeignKeyField(db_column='ci_pipeline_id', rel_model=CiPipelines, to_field='id', unique=True)
+#     dast_profile = ForeignKeyField(db_column='dast_profile_id', rel_model=DastProfiles, to_field='id')
 
-    class Meta:
-        db_table = 'dast_profiles_pipelines'
-        indexes = (
-            (('dast_profile', 'ci_pipeline'), True),
-        )
-        primary_key = CompositeKey('ci_pipeline', 'dast_profile')
+#     class Meta:
+#         db_table = 'dast_profiles_pipelines'
+#         indexes = (
+#             (('dast_profile', 'ci_pipeline'), True),
+#         )
+#         primary_key = CompositeKey('ci_pipeline', 'dast_profile')
 
-class DastScannerProfilesBuilds(BaseModel):
-    ci_build = ForeignKeyField(db_column='ci_build_id', rel_model=CiBuilds, to_field='id', unique=True)
-    dast_scanner_profile = ForeignKeyField(db_column='dast_scanner_profile_id', rel_model=DastScannerProfiles, to_field='id')
+# class DastScannerProfilesBuilds(BaseModel):
+#     ci_build = ForeignKeyField(db_column='ci_build_id', rel_model=CiBuilds, to_field='id', unique=True)
+#     dast_scanner_profile = ForeignKeyField(db_column='dast_scanner_profile_id', rel_model=DastScannerProfiles, to_field='id')
 
-    class Meta:
-        db_table = 'dast_scanner_profiles_builds'
-        indexes = (
-            (('dast_scanner_profile', 'ci_build'), True),
-        )
-        primary_key = CompositeKey('ci_build', 'dast_scanner_profile')
+#     class Meta:
+#         db_table = 'dast_scanner_profiles_builds'
+#         indexes = (
+#             (('dast_scanner_profile', 'ci_build'), True),
+#         )
+#         primary_key = CompositeKey('ci_build', 'dast_scanner_profile')
 
-class DastSiteProfileSecretVariables(BaseModel):
-    created_at = DateTimeField()
-    dast_site_profile = ForeignKeyField(db_column='dast_site_profile_id', rel_model=DastSiteProfiles, to_field='id')
-    encrypted_value = BlobField()
-    encrypted_value_iv = BlobField()
-    id = BigIntegerField(primary_key=True)
-    key = TextField()
-    updated_at = DateTimeField()
-    variable_type = IntegerField()
+# class DastSiteProfileSecretVariables(BaseModel):
+#     created_at = DateTimeField()
+#     dast_site_profile = ForeignKeyField(db_column='dast_site_profile_id', rel_model=DastSiteProfiles, to_field='id')
+#     encrypted_value = BlobField()
+#     encrypted_value_iv = BlobField()
+#     id = BigIntegerField(primary_key=True)
+#     key = TextField()
+#     updated_at = DateTimeField()
+#     variable_type = IntegerField()
 
-    class Meta:
-        db_table = 'dast_site_profile_secret_variables'
-        indexes = (
-            (('dast_site_profile', 'key'), True),
-        )
+#     class Meta:
+#         db_table = 'dast_site_profile_secret_variables'
+#         indexes = (
+#             (('dast_site_profile', 'key'), True),
+#         )
 
-class DastSiteProfilesBuilds(BaseModel):
-    ci_build = ForeignKeyField(db_column='ci_build_id', rel_model=CiBuilds, to_field='id', unique=True)
-    dast_site_profile = ForeignKeyField(db_column='dast_site_profile_id', rel_model=DastSiteProfiles, to_field='id')
+# class DastSiteProfilesBuilds(BaseModel):
+#     ci_build = ForeignKeyField(db_column='ci_build_id', rel_model=CiBuilds, to_field='id', unique=True)
+#     dast_site_profile = ForeignKeyField(db_column='dast_site_profile_id', rel_model=DastSiteProfiles, to_field='id')
 
-    class Meta:
-        db_table = 'dast_site_profiles_builds'
-        indexes = (
-            (('dast_site_profile', 'ci_build'), True),
-        )
-        primary_key = CompositeKey('ci_build', 'dast_site_profile')
+#     class Meta:
+#         db_table = 'dast_site_profiles_builds'
+#         indexes = (
+#             (('dast_site_profile', 'ci_build'), True),
+#         )
+#         primary_key = CompositeKey('ci_build', 'dast_site_profile')
 
-class DastSiteProfilesPipelines(BaseModel):
-    ci_pipeline = ForeignKeyField(db_column='ci_pipeline_id', rel_model=CiPipelines, to_field='id', unique=True)
-    dast_site_profile = ForeignKeyField(db_column='dast_site_profile_id', rel_model=DastSiteProfiles, to_field='id')
+# class DastSiteProfilesPipelines(BaseModel):
+#     ci_pipeline = ForeignKeyField(db_column='ci_pipeline_id', rel_model=CiPipelines, to_field='id', unique=True)
+#     dast_site_profile = ForeignKeyField(db_column='dast_site_profile_id', rel_model=DastSiteProfiles, to_field='id')
 
-    class Meta:
-        db_table = 'dast_site_profiles_pipelines'
-        indexes = (
-            (('dast_site_profile', 'ci_pipeline'), True),
-        )
-        primary_key = CompositeKey('ci_pipeline', 'dast_site_profile')
+#     class Meta:
+#         db_table = 'dast_site_profiles_pipelines'
+#         indexes = (
+#             (('dast_site_profile', 'ci_pipeline'), True),
+#         )
+#         primary_key = CompositeKey('ci_pipeline', 'dast_site_profile')
 
-class DepCiBuildTraceSectionNames(BaseModel):
-    name = CharField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+# class DepCiBuildTraceSectionNames(BaseModel):
+#     name = CharField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
 
-    class Meta:
-        db_table = 'dep_ci_build_trace_section_names'
-        indexes = (
-            (('project', 'name'), True),
-        )
+#     class Meta:
+#         db_table = 'dep_ci_build_trace_section_names'
+#         indexes = (
+#             (('project', 'name'), True),
+#         )
 
-class DepCiBuildTraceSections(BaseModel):
-    build = IntegerField(db_column='build_id')
-    build_id_convert_to_bigint = BigIntegerField()
-    byte_end = BigIntegerField()
-    byte_start = BigIntegerField()
-    date_end = DateTimeField()
-    date_start = DateTimeField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    section_name = ForeignKeyField(db_column='section_name_id', rel_model=DepCiBuildTraceSectionNames, to_field='id')
+# class DepCiBuildTraceSections(BaseModel):
+#     build = IntegerField(db_column='build_id')
+#     build_id_convert_to_bigint = BigIntegerField()
+#     byte_end = BigIntegerField()
+#     byte_start = BigIntegerField()
+#     date_end = DateTimeField()
+#     date_start = DateTimeField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     section_name = ForeignKeyField(db_column='section_name_id', rel_model=DepCiBuildTraceSectionNames, to_field='id')
 
-    class Meta:
-        db_table = 'dep_ci_build_trace_sections'
-        indexes = (
-            (('build', 'section_name'), True),
-        )
-        primary_key = CompositeKey('build', 'section_name')
+#     class Meta:
+#         db_table = 'dep_ci_build_trace_sections'
+#         indexes = (
+#             (('build', 'section_name'), True),
+#         )
+#         primary_key = CompositeKey('build', 'section_name')
 
-class DependencyProxyBlobs(BaseModel):
-    created_at = DateTimeField()
-    file = TextField()
-    file_name = CharField()
-    file_store = IntegerField(null=True)
-    group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
-    size = BigIntegerField(null=True)
-    status = IntegerField(index=True)
-    updated_at = DateTimeField()
+# class DependencyProxyBlobs(BaseModel):
+#     created_at = DateTimeField()
+#     file = TextField()
+#     file_name = CharField()
+#     file_store = IntegerField(null=True)
+#     group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
+#     size = BigIntegerField(null=True)
+#     status = IntegerField(index=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'dependency_proxy_blobs'
-        indexes = (
-            (('group', 'file_name'), False),
-            (('id', 'group', 'status'), False),
-        )
+#     class Meta:
+#         db_table = 'dependency_proxy_blobs'
+#         indexes = (
+#             (('group', 'file_name'), False),
+#             (('id', 'group', 'status'), False),
+#         )
 
-class DependencyProxyGroupSettings(BaseModel):
-    created_at = DateTimeField()
-    enabled = BooleanField()
-    group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
-    updated_at = DateTimeField()
+# class DependencyProxyGroupSettings(BaseModel):
+#     created_at = DateTimeField()
+#     enabled = BooleanField()
+#     group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'dependency_proxy_group_settings'
+#     class Meta:
+#         db_table = 'dependency_proxy_group_settings'
 
-class DependencyProxyImageTtlGroupPolicies(BaseModel):
-    created_at = DateTimeField()
-    enabled = BooleanField()
-    group = ForeignKeyField(db_column='group_id', primary_key=True, rel_model=Namespaces, to_field='id')
-    ttl = IntegerField(null=True)
-    updated_at = DateTimeField()
+# class DependencyProxyImageTtlGroupPolicies(BaseModel):
+#     created_at = DateTimeField()
+#     enabled = BooleanField()
+#     group = ForeignKeyField(db_column='group_id', primary_key=True, rel_model=Namespaces, to_field='id')
+#     ttl = IntegerField(null=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'dependency_proxy_image_ttl_group_policies'
+#     class Meta:
+#         db_table = 'dependency_proxy_image_ttl_group_policies'
 
-class DependencyProxyManifests(BaseModel):
-    content_type = TextField(null=True)
-    created_at = DateTimeField()
-    digest = TextField()
-    file = TextField()
-    file_name = TextField()
-    file_store = IntegerField(null=True)
-    group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    size = BigIntegerField(null=True)
-    status = IntegerField(index=True)
-    updated_at = DateTimeField()
+# class DependencyProxyManifests(BaseModel):
+#     content_type = TextField(null=True)
+#     created_at = DateTimeField()
+#     digest = TextField()
+#     file = TextField()
+#     file_name = TextField()
+#     file_store = IntegerField(null=True)
+#     group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     size = BigIntegerField(null=True)
+#     status = IntegerField(index=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'dependency_proxy_manifests'
-        indexes = (
-            (('group', 'file_name', 'status'), True),
-            (('id', 'group', 'status'), False),
-        )
+#     class Meta:
+#         db_table = 'dependency_proxy_manifests'
+#         indexes = (
+#             (('group', 'file_name', 'status'), True),
+#             (('id', 'group', 'status'), False),
+#         )
 
-class DeployKeysProjects(BaseModel):
-    can_push = BooleanField()
-    created_at = DateTimeField(null=True)
-    deploy_key = IntegerField(db_column='deploy_key_id', index=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    updated_at = DateTimeField(null=True)
+# class DeployKeysProjects(BaseModel):
+#     can_push = BooleanField()
+#     created_at = DateTimeField(null=True)
+#     deploy_key = IntegerField(db_column='deploy_key_id', index=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField(null=True)
 
-    class Meta:
-        db_table = 'deploy_keys_projects'
+#     class Meta:
+#         db_table = 'deploy_keys_projects'
 
-class DeployTokens(BaseModel):
-    created_at = DateTimeField()
-    deploy_token_type = IntegerField()
-    expires_at = DateTimeField()
-    name = CharField()
-    read_package_registry = BooleanField()
-    read_registry = BooleanField()
-    read_repository = BooleanField()
-    revoked = BooleanField(null=True)
-    token = CharField(null=True, unique=True)
-    token_encrypted = CharField(null=True, unique=True)
-    username = CharField(null=True)
-    write_package_registry = BooleanField()
-    write_registry = BooleanField()
+# class DeployTokens(BaseModel):
+#     created_at = DateTimeField()
+#     deploy_token_type = IntegerField()
+#     expires_at = DateTimeField()
+#     name = CharField()
+#     read_package_registry = BooleanField()
+#     read_registry = BooleanField()
+#     read_repository = BooleanField()
+#     revoked = BooleanField(null=True)
+#     token = CharField(null=True, unique=True)
+#     token_encrypted = CharField(null=True, unique=True)
+#     username = CharField(null=True)
+#     write_package_registry = BooleanField()
+#     write_registry = BooleanField()
 
-    class Meta:
-        db_table = 'deploy_tokens'
-        indexes = (
-            (('id', 'expires_at', 'token'), False),
-        )
+#     class Meta:
+#         db_table = 'deploy_tokens'
+#         indexes = (
+#             (('id', 'expires_at', 'token'), False),
+#         )
 
-class Deployments(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', null=True, rel_model=Clusters, to_field='id')
-    created_at = DateTimeField(index=True, null=True)
-    deployable = BigIntegerField(db_column='deployable_id', null=True)
-    deployable_type = CharField(null=True)
-    environment = ForeignKeyField(db_column='environment_id', rel_model=Environments, to_field='id')
-    finished_at = DateTimeField(null=True)
-    iid = IntegerField()
-    on_stop = CharField(null=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    ref = CharField()
-    sha = CharField()
-    status = IntegerField()
-    tag = BooleanField()
-    updated_at = DateTimeField(null=True)
-    user = IntegerField(db_column='user_id', null=True)
+# class Deployments(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', null=True, rel_model=Clusters, to_field='id')
+#     created_at = DateTimeField(index=True, null=True)
+#     deployable = BigIntegerField(db_column='deployable_id', null=True)
+#     deployable_type = CharField(null=True)
+#     environment = ForeignKeyField(db_column='environment_id', rel_model=Environments, to_field='id')
+#     finished_at = DateTimeField(null=True)
+#     iid = IntegerField()
+#     on_stop = CharField(null=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     ref = CharField()
+#     sha = CharField()
+#     status = IntegerField()
+#     tag = BooleanField()
+#     updated_at = DateTimeField(null=True)
+#     user = IntegerField(db_column='user_id', null=True)
 
-    class Meta:
-        db_table = 'deployments'
-        indexes = (
-            (('cluster', 'status'), False),
-            (('created_at', 'project', 'status'), False),
-            (('deployable', 'deployable_type'), False),
-            (('environment', 'cluster'), False),
-            (('environment', 'id'), False),
-            (('environment', 'iid', 'project'), False),
-            (('environment', 'sha', 'status'), False),
-            (('finished_at', 'status', 'environment'), False),
-            (('id', 'created_at', 'status'), False),
-            (('id', 'project', 'updated_at'), False),
-            (('project', 'environment', 'updated_at', 'id'), False),
-            (('project', 'finished_at'), False),
-            (('project', 'id'), False),
-            (('project', 'iid'), True),
-            (('project', 'ref'), False),
-            (('project', 'sha'), False),
-            (('project', 'status'), False),
-            (('status', 'id', 'environment'), False),
-            (('user', 'created_at', 'status'), False),
-        )
+#     class Meta:
+#         db_table = 'deployments'
+#         indexes = (
+#             (('cluster', 'status'), False),
+#             (('created_at', 'project', 'status'), False),
+#             (('deployable', 'deployable_type'), False),
+#             (('environment', 'cluster'), False),
+#             (('environment', 'id'), False),
+#             (('environment', 'iid', 'project'), False),
+#             (('environment', 'sha', 'status'), False),
+#             (('finished_at', 'status', 'environment'), False),
+#             (('id', 'created_at', 'status'), False),
+#             (('id', 'project', 'updated_at'), False),
+#             (('project', 'environment', 'updated_at', 'id'), False),
+#             (('project', 'finished_at'), False),
+#             (('project', 'id'), False),
+#             (('project', 'iid'), True),
+#             (('project', 'ref'), False),
+#             (('project', 'sha'), False),
+#             (('project', 'status'), False),
+#             (('status', 'id', 'environment'), False),
+#             (('user', 'created_at', 'status'), False),
+#         )
 
-class DeploymentClusters(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id')
-    deployment = ForeignKeyField(db_column='deployment_id', primary_key=True, rel_model=Deployments, to_field='id')
-    kubernetes_namespace = CharField(null=True)
+# class DeploymentClusters(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', rel_model=Clusters, to_field='id')
+#     deployment = ForeignKeyField(db_column='deployment_id', primary_key=True, rel_model=Deployments, to_field='id')
+#     kubernetes_namespace = CharField(null=True)
 
-    class Meta:
-        db_table = 'deployment_clusters'
-        indexes = (
-            (('cluster', 'kubernetes_namespace'), False),
-            (('deployment', 'cluster'), True),
-        )
+#     class Meta:
+#         db_table = 'deployment_clusters'
+#         indexes = (
+#             (('cluster', 'kubernetes_namespace'), False),
+#             (('deployment', 'cluster'), True),
+#         )
 
-class DeploymentMergeRequests(BaseModel):
-    deployment = ForeignKeyField(db_column='deployment_id', rel_model=Deployments, to_field='id')
-    environment = ForeignKeyField(db_column='environment_id', null=True, rel_model=Environments, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
+# class DeploymentMergeRequests(BaseModel):
+#     deployment = ForeignKeyField(db_column='deployment_id', rel_model=Deployments, to_field='id')
+#     environment = ForeignKeyField(db_column='environment_id', null=True, rel_model=Environments, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
 
-    class Meta:
-        db_table = 'deployment_merge_requests'
-        indexes = (
-            (('deployment', 'merge_request'), True),
-            (('merge_request', 'environment'), True),
-        )
-        primary_key = CompositeKey('deployment', 'merge_request')
+#     class Meta:
+#         db_table = 'deployment_merge_requests'
+#         indexes = (
+#             (('deployment', 'merge_request'), True),
+#             (('merge_request', 'environment'), True),
+#         )
+#         primary_key = CompositeKey('deployment', 'merge_request')
 
-class DescriptionVersions(BaseModel):
-    created_at = DateTimeField()
-    deleted_at = DateTimeField(null=True)
-    description = TextField(null=True)
-    epic = ForeignKeyField(db_column='epic_id', null=True, rel_model=Epics, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
-    updated_at = DateTimeField()
+# class DescriptionVersions(BaseModel):
+#     created_at = DateTimeField()
+#     deleted_at = DateTimeField(null=True)
+#     description = TextField(null=True)
+#     epic = ForeignKeyField(db_column='epic_id', null=True, rel_model=Epics, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'description_versions'
+#     class Meta:
+#         db_table = 'description_versions'
 
 class DesignManagementDesigns(BaseModel):
     filename = CharField()
@@ -3822,19 +3826,19 @@ class DesignManagementDesignsVersions(BaseModel):
             (('design', 'version'), True),
         )
 
-class DesignUserMentions(BaseModel):
-    design = ForeignKeyField(db_column='design_id', rel_model=DesignManagementDesigns, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    mentioned_groups_ids = UnknownField(null=True)  # ARRAY
-    mentioned_projects_ids = UnknownField(null=True)  # ARRAY
-    mentioned_users_ids = UnknownField(null=True)  # ARRAY
-    note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id', unique=True)
+# class DesignUserMentions(BaseModel):
+#     design = ForeignKeyField(db_column='design_id', rel_model=DesignManagementDesigns, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     #mentioned_groups_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_projects_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_users_ids = UnknownField(null=True)  # ARRAY
+#     note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id', unique=True)
 
-    class Meta:
-        db_table = 'design_user_mentions'
-        indexes = (
-            (('design', 'note'), True),
-        )
+#     class Meta:
+#         db_table = 'design_user_mentions'
+#         indexes = (
+#             (('design', 'note'), True),
+#         )
 
 class DetachedPartitions(BaseModel):
     created_at = DateTimeField()
@@ -3846,25 +3850,25 @@ class DetachedPartitions(BaseModel):
     class Meta:
         db_table = 'detached_partitions'
 
-class DiffNotePositions(BaseModel):
-    base_sha = BlobField()
-    diff_content_type = IntegerField()
-    diff_type = IntegerField()
-    head_sha = BlobField()
-    id = BigIntegerField(primary_key=True)
-    line_code = CharField()
-    new_line = IntegerField(null=True)
-    new_path = TextField()
-    note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id')
-    old_line = IntegerField(null=True)
-    old_path = TextField()
-    start_sha = BlobField()
+# class DiffNotePositions(BaseModel):
+#     base_sha = BlobField()
+#     diff_content_type = IntegerField()
+#     diff_type = IntegerField()
+#     head_sha = BlobField()
+#     id = BigIntegerField(primary_key=True)
+#     line_code = CharField()
+#     new_line = IntegerField(null=True)
+#     new_path = TextField()
+#     note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id')
+#     old_line = IntegerField(null=True)
+#     old_path = TextField()
+#     start_sha = BlobField()
 
-    class Meta:
-        db_table = 'diff_note_positions'
-        indexes = (
-            (('note', 'diff_type'), True),
-        )
+#     class Meta:
+#         db_table = 'diff_note_positions'
+#         indexes = (
+#             (('note', 'diff_type'), True),
+#         )
 
 class DoraDailyMetrics(BaseModel):
     date = DateField()
@@ -3879,20 +3883,20 @@ class DoraDailyMetrics(BaseModel):
             (('environment', 'date'), True),
         )
 
-class DraftNotes(BaseModel):
-    author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
-    change_position = TextField(null=True)
-    commit = BlobField(db_column='commit_id', null=True)
-    discussion = CharField(db_column='discussion_id', index=True, null=True)
-    id = BigIntegerField(primary_key=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
-    note = TextField()
-    original_position = TextField(null=True)
-    position = TextField(null=True)
-    resolve_discussion = BooleanField()
+# class DraftNotes(BaseModel):
+#     author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
+#     change_position = TextField(null=True)
+#     commit = BlobField(db_column='commit_id', null=True)
+#     discussion = CharField(db_column='discussion_id', index=True, null=True)
+#     id = BigIntegerField(primary_key=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
+#     note = TextField()
+#     original_position = TextField(null=True)
+#     position = TextField(null=True)
+#     resolve_discussion = BooleanField()
 
-    class Meta:
-        db_table = 'draft_notes'
+#     class Meta:
+#         db_table = 'draft_notes'
 
 class ElasticIndexSettings(BaseModel):
     alias_name = TextField(unique=True)
@@ -3975,38 +3979,38 @@ class Emails(BaseModel):
     class Meta:
         db_table = 'emails'
 
-class EpicIssues(BaseModel):
-    epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id')
-    issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id', unique=True)
-    relative_position = IntegerField(null=True)
+# class EpicIssues(BaseModel):
+#     epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id')
+#     issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id', unique=True)
+#     relative_position = IntegerField(null=True)
 
-    class Meta:
-        db_table = 'epic_issues'
-        indexes = (
-            (('epic', 'issue'), False),
-        )
+#     class Meta:
+#         db_table = 'epic_issues'
+#         indexes = (
+#             (('epic', 'issue'), False),
+#         )
 
-class EpicMetrics(BaseModel):
-    created_at = DateTimeField()
-    epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id')
-    updated_at = DateTimeField()
+# class EpicMetrics(BaseModel):
+#     created_at = DateTimeField()
+#     epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'epic_metrics'
+#     class Meta:
+#         db_table = 'epic_metrics'
 
-class EpicUserMentions(BaseModel):
-    epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id', unique=True)
-    id = BigIntegerField(primary_key=True)
-    mentioned_groups_ids = UnknownField(null=True)  # ARRAY
-    mentioned_projects_ids = UnknownField(null=True)  # ARRAY
-    mentioned_users_ids = UnknownField(null=True)  # ARRAY
-    note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
+# class EpicUserMentions(BaseModel):
+#     epic = ForeignKeyField(db_column='epic_id', rel_model=Epics, to_field='id', unique=True)
+#     id = BigIntegerField(primary_key=True)
+#     #mentioned_groups_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_projects_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_users_ids = UnknownField(null=True)  # ARRAY
+#     note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
 
-    class Meta:
-        db_table = 'epic_user_mentions'
-        indexes = (
-            (('epic', 'note'), True),
-        )
+#     class Meta:
+#         db_table = 'epic_user_mentions'
+#         indexes = (
+#             (('epic', 'note'), True),
+#         )
 
 class ErrorTrackingClientKeys(BaseModel):
     active = BooleanField()
@@ -4218,277 +4222,277 @@ class Features(BaseModel):
     class Meta:
         db_table = 'features'
 
-class ForkNetworks(BaseModel):
-    deleted_root_project_name = CharField(null=True)
-    root_project = ForeignKeyField(db_column='root_project_id', null=True, rel_model=Projects, to_field='id', unique=True)
+# class ForkNetworks(BaseModel):
+#     deleted_root_project_name = CharField(null=True)
+#     root_project = ForeignKeyField(db_column='root_project_id', null=True, rel_model=Projects, to_field='id', unique=True)
 
-    class Meta:
-        db_table = 'fork_networks'
+#     class Meta:
+#         db_table = 'fork_networks'
 
-class ForkNetworkMembers(BaseModel):
-    fork_network = ForeignKeyField(db_column='fork_network_id', rel_model=ForkNetworks, to_field='id')
-    forked_from_project = ForeignKeyField(db_column='forked_from_project_id', null=True, rel_model=Projects, to_field='id')
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, related_name='projects_project_set', to_field='id', unique=True)
+# class ForkNetworkMembers(BaseModel):
+#     fork_network = ForeignKeyField(db_column='fork_network_id', rel_model=ForkNetworks, to_field='id')
+#     forked_from_project = ForeignKeyField(db_column='forked_from_project_id', null=True, rel_model=Projects, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, related_name='projects_project_set', to_field='id', unique=True)
 
-    class Meta:
-        db_table = 'fork_network_members'
+#     class Meta:
+#         db_table = 'fork_network_members'
 
-class GeoCacheInvalidationEvents(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    key = CharField()
+# class GeoCacheInvalidationEvents(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     key = CharField()
 
-    class Meta:
-        db_table = 'geo_cache_invalidation_events'
+#     class Meta:
+#         db_table = 'geo_cache_invalidation_events'
 
-class GeoContainerRepositoryUpdatedEvents(BaseModel):
-    container_repository = ForeignKeyField(db_column='container_repository_id', rel_model=ContainerRepositories, to_field='id')
-    id = BigIntegerField(primary_key=True)
+# class GeoContainerRepositoryUpdatedEvents(BaseModel):
+#     container_repository = ForeignKeyField(db_column='container_repository_id', rel_model=ContainerRepositories, to_field='id')
+#     id = BigIntegerField(primary_key=True)
 
-    class Meta:
-        db_table = 'geo_container_repository_updated_events'
+#     class Meta:
+#         db_table = 'geo_container_repository_updated_events'
 
-class GeoJobArtifactDeletedEvents(BaseModel):
-    file_path = CharField()
-    id = BigIntegerField(primary_key=True)
-    job_artifact = BigIntegerField(db_column='job_artifact_id', index=True)
+# class GeoJobArtifactDeletedEvents(BaseModel):
+#     file_path = CharField()
+#     id = BigIntegerField(primary_key=True)
+#     job_artifact = BigIntegerField(db_column='job_artifact_id', index=True)
 
-    class Meta:
-        db_table = 'geo_job_artifact_deleted_events'
+#     class Meta:
+#         db_table = 'geo_job_artifact_deleted_events'
 
-class GeoHashedStorageMigratedEvents(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    new_design_disk_path = TextField(null=True)
-    new_disk_path = TextField()
-    new_storage_version = IntegerField()
-    new_wiki_disk_path = TextField()
-    old_design_disk_path = TextField(null=True)
-    old_disk_path = TextField()
-    old_storage_version = IntegerField(null=True)
-    old_wiki_disk_path = TextField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    repository_storage_name = TextField()
+# class GeoHashedStorageMigratedEvents(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     new_design_disk_path = TextField(null=True)
+#     new_disk_path = TextField()
+#     new_storage_version = IntegerField()
+#     new_wiki_disk_path = TextField()
+#     old_design_disk_path = TextField(null=True)
+#     old_disk_path = TextField()
+#     old_storage_version = IntegerField(null=True)
+#     old_wiki_disk_path = TextField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     repository_storage_name = TextField()
 
-    class Meta:
-        db_table = 'geo_hashed_storage_migrated_events'
+#     class Meta:
+#         db_table = 'geo_hashed_storage_migrated_events'
 
-class GeoNodes(BaseModel):
-    access_key = CharField(index=True, null=True)
-    clone_url_prefix = CharField(null=True)
-    container_repositories_max_capacity = IntegerField()
-    created_at = DateTimeField(null=True)
-    enabled = BooleanField()
-    encrypted_secret_access_key = CharField(null=True)
-    encrypted_secret_access_key_iv = CharField(null=True)
-    files_max_capacity = IntegerField()
-    internal_url = CharField(null=True)
-    minimum_reverification_interval = IntegerField()
-    name = CharField(unique=True)
-    oauth_application = IntegerField(db_column='oauth_application_id', null=True)
-    primary = BooleanField(index=True)
-    repos_max_capacity = IntegerField()
-    selective_sync_shards = TextField(null=True)
-    selective_sync_type = CharField(null=True)
-    sync_object_storage = BooleanField()
-    updated_at = DateTimeField(null=True)
-    url = CharField()
-    verification_max_capacity = IntegerField()
+# class GeoNodes(BaseModel):
+#     access_key = CharField(index=True, null=True)
+#     clone_url_prefix = CharField(null=True)
+#     container_repositories_max_capacity = IntegerField()
+#     created_at = DateTimeField(null=True)
+#     enabled = BooleanField()
+#     encrypted_secret_access_key = CharField(null=True)
+#     encrypted_secret_access_key_iv = CharField(null=True)
+#     files_max_capacity = IntegerField()
+#     internal_url = CharField(null=True)
+#     minimum_reverification_interval = IntegerField()
+#     name = CharField(unique=True)
+#     oauth_application = IntegerField(db_column='oauth_application_id', null=True)
+#     primary = BooleanField(index=True)
+#     repos_max_capacity = IntegerField()
+#     selective_sync_shards = TextField(null=True)
+#     selective_sync_type = CharField(null=True)
+#     sync_object_storage = BooleanField()
+#     updated_at = DateTimeField(null=True)
+#     url = CharField()
+#     verification_max_capacity = IntegerField()
 
-    class Meta:
-        db_table = 'geo_nodes'
+#     class Meta:
+#         db_table = 'geo_nodes'
 
-class GeoRepositoriesChangedEvents(BaseModel):
-    geo_node = ForeignKeyField(db_column='geo_node_id', rel_model=GeoNodes, to_field='id')
-    id = BigIntegerField(primary_key=True)
+# class GeoRepositoriesChangedEvents(BaseModel):
+#     geo_node = ForeignKeyField(db_column='geo_node_id', rel_model=GeoNodes, to_field='id')
+#     id = BigIntegerField(primary_key=True)
 
-    class Meta:
-        db_table = 'geo_repositories_changed_events'
+#     class Meta:
+#         db_table = 'geo_repositories_changed_events'
 
-class GeoRepositoryUpdatedEvents(BaseModel):
-    branches_affected = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    new_branch = BooleanField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    ref = TextField(null=True)
-    remove_branch = BooleanField()
-    source = IntegerField(index=True)
-    tags_affected = IntegerField()
+# class GeoRepositoryUpdatedEvents(BaseModel):
+#     branches_affected = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     new_branch = BooleanField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     ref = TextField(null=True)
+#     remove_branch = BooleanField()
+#     source = IntegerField(index=True)
+#     tags_affected = IntegerField()
 
-    class Meta:
-        db_table = 'geo_repository_updated_events'
+#     class Meta:
+#         db_table = 'geo_repository_updated_events'
 
-class GeoRepositoryRenamedEvents(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    new_path = TextField()
-    new_path_with_namespace = TextField()
-    new_wiki_path_with_namespace = TextField()
-    old_path = TextField()
-    old_path_with_namespace = TextField()
-    old_wiki_path_with_namespace = TextField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    repository_storage_name = TextField()
+# class GeoRepositoryRenamedEvents(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     new_path = TextField()
+#     new_path_with_namespace = TextField()
+#     new_wiki_path_with_namespace = TextField()
+#     old_path = TextField()
+#     old_path_with_namespace = TextField()
+#     old_wiki_path_with_namespace = TextField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     repository_storage_name = TextField()
 
-    class Meta:
-        db_table = 'geo_repository_renamed_events'
+#     class Meta:
+#         db_table = 'geo_repository_renamed_events'
 
-class GeoRepositoryCreatedEvents(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    project_name = TextField()
-    repo_path = TextField()
-    repository_storage_name = TextField()
-    wiki_path = TextField(null=True)
+# class GeoRepositoryCreatedEvents(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     project_name = TextField()
+#     repo_path = TextField()
+#     repository_storage_name = TextField()
+#     wiki_path = TextField(null=True)
 
-    class Meta:
-        db_table = 'geo_repository_created_events'
+#     class Meta:
+#         db_table = 'geo_repository_created_events'
 
-class GeoUploadDeletedEvents(BaseModel):
-    file_path = CharField()
-    id = BigIntegerField(primary_key=True)
-    model = IntegerField(db_column='model_id')
-    model_type = CharField()
-    upload = IntegerField(db_column='upload_id', index=True)
-    uploader = CharField()
+# class GeoUploadDeletedEvents(BaseModel):
+#     file_path = CharField()
+#     id = BigIntegerField(primary_key=True)
+#     model = IntegerField(db_column='model_id')
+#     model_type = CharField()
+#     upload = IntegerField(db_column='upload_id', index=True)
+#     uploader = CharField()
 
-    class Meta:
-        db_table = 'geo_upload_deleted_events'
+#     class Meta:
+#         db_table = 'geo_upload_deleted_events'
 
-class GeoRepositoryDeletedEvents(BaseModel):
-    deleted_path = TextField()
-    deleted_project_name = TextField()
-    deleted_wiki_path = TextField(null=True)
-    id = BigIntegerField(primary_key=True)
-    project = IntegerField(db_column='project_id', index=True)
-    repository_storage_name = TextField()
+# class GeoRepositoryDeletedEvents(BaseModel):
+#     deleted_path = TextField()
+#     deleted_project_name = TextField()
+#     deleted_wiki_path = TextField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     project = IntegerField(db_column='project_id', index=True)
+#     repository_storage_name = TextField()
 
-    class Meta:
-        db_table = 'geo_repository_deleted_events'
+#     class Meta:
+#         db_table = 'geo_repository_deleted_events'
 
-class GeoResetChecksumEvents(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+# class GeoResetChecksumEvents(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
 
-    class Meta:
-        db_table = 'geo_reset_checksum_events'
+#     class Meta:
+#         db_table = 'geo_reset_checksum_events'
 
-class GeoLfsObjectDeletedEvents(BaseModel):
-    file_path = CharField()
-    id = BigIntegerField(primary_key=True)
-    lfs_object = IntegerField(db_column='lfs_object_id', index=True)
-    oid = CharField()
+# class GeoLfsObjectDeletedEvents(BaseModel):
+#     file_path = CharField()
+#     id = BigIntegerField(primary_key=True)
+#     lfs_object = IntegerField(db_column='lfs_object_id', index=True)
+#     oid = CharField()
 
-    class Meta:
-        db_table = 'geo_lfs_object_deleted_events'
+#     class Meta:
+#         db_table = 'geo_lfs_object_deleted_events'
 
-class GeoEvents(BaseModel):
-    created_at = DateTimeField()
-    event_name = CharField()
-    id = BigIntegerField(primary_key=True)
-    payload = JSONField()
-    replicable_name = CharField()
+# class GeoEvents(BaseModel):
+#     created_at = DateTimeField()
+#     event_name = CharField()
+#     id = BigIntegerField(primary_key=True)
+#     payload = JSONField()
+#     replicable_name = CharField()
 
-    class Meta:
-        db_table = 'geo_events'
+#     class Meta:
+#         db_table = 'geo_events'
 
-class GeoEventLog(BaseModel):
-    cache_invalidation_event = ForeignKeyField(db_column='cache_invalidation_event_id', null=True, rel_model=GeoCacheInvalidationEvents, to_field='id')
-    container_repository_updated_event = ForeignKeyField(db_column='container_repository_updated_event_id', null=True, rel_model=GeoContainerRepositoryUpdatedEvents, to_field='id')
-    created_at = DateTimeField()
-    geo_event = ForeignKeyField(db_column='geo_event_id', null=True, rel_model=GeoEvents, to_field='id')
-    hashed_storage_attachments_event = BigIntegerField(db_column='hashed_storage_attachments_event_id', index=True, null=True)
-    hashed_storage_migrated_event = ForeignKeyField(db_column='hashed_storage_migrated_event_id', null=True, rel_model=GeoHashedStorageMigratedEvents, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    job_artifact_deleted_event = ForeignKeyField(db_column='job_artifact_deleted_event_id', null=True, rel_model=GeoJobArtifactDeletedEvents, to_field='id')
-    lfs_object_deleted_event = ForeignKeyField(db_column='lfs_object_deleted_event_id', null=True, rel_model=GeoLfsObjectDeletedEvents, to_field='id')
-    repositories_changed_event = ForeignKeyField(db_column='repositories_changed_event_id', null=True, rel_model=GeoRepositoriesChangedEvents, to_field='id')
-    repository_created_event = ForeignKeyField(db_column='repository_created_event_id', null=True, rel_model=GeoRepositoryCreatedEvents, to_field='id')
-    repository_deleted_event = ForeignKeyField(db_column='repository_deleted_event_id', null=True, rel_model=GeoRepositoryDeletedEvents, to_field='id')
-    repository_renamed_event = ForeignKeyField(db_column='repository_renamed_event_id', null=True, rel_model=GeoRepositoryRenamedEvents, to_field='id')
-    repository_updated_event = ForeignKeyField(db_column='repository_updated_event_id', null=True, rel_model=GeoRepositoryUpdatedEvents, to_field='id')
-    reset_checksum_event = ForeignKeyField(db_column='reset_checksum_event_id', null=True, rel_model=GeoResetChecksumEvents, to_field='id')
-    upload_deleted_event = ForeignKeyField(db_column='upload_deleted_event_id', null=True, rel_model=GeoUploadDeletedEvents, to_field='id')
+# class GeoEventLog(BaseModel):
+#     cache_invalidation_event = ForeignKeyField(db_column='cache_invalidation_event_id', null=True, rel_model=GeoCacheInvalidationEvents, to_field='id')
+#     container_repository_updated_event = ForeignKeyField(db_column='container_repository_updated_event_id', null=True, rel_model=GeoContainerRepositoryUpdatedEvents, to_field='id')
+#     created_at = DateTimeField()
+#     geo_event = ForeignKeyField(db_column='geo_event_id', null=True, rel_model=GeoEvents, to_field='id')
+#     hashed_storage_attachments_event = BigIntegerField(db_column='hashed_storage_attachments_event_id', index=True, null=True)
+#     hashed_storage_migrated_event = ForeignKeyField(db_column='hashed_storage_migrated_event_id', null=True, rel_model=GeoHashedStorageMigratedEvents, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     job_artifact_deleted_event = ForeignKeyField(db_column='job_artifact_deleted_event_id', null=True, rel_model=GeoJobArtifactDeletedEvents, to_field='id')
+#     lfs_object_deleted_event = ForeignKeyField(db_column='lfs_object_deleted_event_id', null=True, rel_model=GeoLfsObjectDeletedEvents, to_field='id')
+#     repositories_changed_event = ForeignKeyField(db_column='repositories_changed_event_id', null=True, rel_model=GeoRepositoriesChangedEvents, to_field='id')
+#     repository_created_event = ForeignKeyField(db_column='repository_created_event_id', null=True, rel_model=GeoRepositoryCreatedEvents, to_field='id')
+#     repository_deleted_event = ForeignKeyField(db_column='repository_deleted_event_id', null=True, rel_model=GeoRepositoryDeletedEvents, to_field='id')
+#     repository_renamed_event = ForeignKeyField(db_column='repository_renamed_event_id', null=True, rel_model=GeoRepositoryRenamedEvents, to_field='id')
+#     repository_updated_event = ForeignKeyField(db_column='repository_updated_event_id', null=True, rel_model=GeoRepositoryUpdatedEvents, to_field='id')
+#     reset_checksum_event = ForeignKeyField(db_column='reset_checksum_event_id', null=True, rel_model=GeoResetChecksumEvents, to_field='id')
+#     upload_deleted_event = ForeignKeyField(db_column='upload_deleted_event_id', null=True, rel_model=GeoUploadDeletedEvents, to_field='id')
 
-    class Meta:
-        db_table = 'geo_event_log'
+#     class Meta:
+#         db_table = 'geo_event_log'
 
-class GeoHashedStorageAttachmentsEvents(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    new_attachments_path = TextField()
-    old_attachments_path = TextField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+# class GeoHashedStorageAttachmentsEvents(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     new_attachments_path = TextField()
+#     old_attachments_path = TextField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
 
-    class Meta:
-        db_table = 'geo_hashed_storage_attachments_events'
+#     class Meta:
+#         db_table = 'geo_hashed_storage_attachments_events'
 
-class GeoNodeNamespaceLinks(BaseModel):
-    created_at = DateTimeField()
-    geo_node = ForeignKeyField(db_column='geo_node_id', rel_model=GeoNodes, to_field='id')
-    namespace = ForeignKeyField(db_column='namespace_id', rel_model=Namespaces, to_field='id')
-    updated_at = DateTimeField()
+# class GeoNodeNamespaceLinks(BaseModel):
+#     created_at = DateTimeField()
+#     geo_node = ForeignKeyField(db_column='geo_node_id', rel_model=GeoNodes, to_field='id')
+#     namespace = ForeignKeyField(db_column='namespace_id', rel_model=Namespaces, to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'geo_node_namespace_links'
-        indexes = (
-            (('geo_node', 'namespace'), True),
-        )
+#     class Meta:
+#         db_table = 'geo_node_namespace_links'
+#         indexes = (
+#             (('geo_node', 'namespace'), True),
+#         )
 
-class GeoNodeStatuses(BaseModel):
-    attachments_count = IntegerField(null=True)
-    attachments_failed_count = IntegerField(null=True)
-    attachments_synced_count = IntegerField(null=True)
-    attachments_synced_missing_on_primary_count = IntegerField(null=True)
-    container_repositories_count = IntegerField(null=True)
-    container_repositories_failed_count = IntegerField(null=True)
-    container_repositories_registry_count = IntegerField(null=True)
-    container_repositories_synced_count = IntegerField(null=True)
-    created_at = DateTimeField()
-    cursor_last_event_date = DateTimeField(null=True)
-    cursor_last_event = IntegerField(db_column='cursor_last_event_id', null=True)
-    db_replication_lag_seconds = IntegerField(null=True)
-    design_repositories_count = IntegerField(null=True)
-    design_repositories_failed_count = IntegerField(null=True)
-    design_repositories_registry_count = IntegerField(null=True)
-    design_repositories_synced_count = IntegerField(null=True)
-    geo_node = ForeignKeyField(db_column='geo_node_id', rel_model=GeoNodes, to_field='id', unique=True)
-    job_artifacts_count = IntegerField(null=True)
-    job_artifacts_failed_count = IntegerField(null=True)
-    job_artifacts_synced_count = IntegerField(null=True)
-    job_artifacts_synced_missing_on_primary_count = IntegerField(null=True)
-    last_event_date = DateTimeField(null=True)
-    last_event = IntegerField(db_column='last_event_id', null=True)
-    last_successful_status_check_at = DateTimeField(null=True)
-    lfs_objects_count = IntegerField(null=True)
-    lfs_objects_failed_count = IntegerField(null=True)
-    lfs_objects_synced_count = IntegerField(null=True)
-    lfs_objects_synced_missing_on_primary_count = IntegerField(null=True)
-    projects_count = IntegerField(null=True)
-    replication_slots_count = IntegerField(null=True)
-    replication_slots_max_retained_wal_bytes = BigIntegerField(null=True)
-    replication_slots_used_count = IntegerField(null=True)
-    repositories_checksum_failed_count = IntegerField(null=True)
-    repositories_checksum_mismatch_count = IntegerField(null=True)
-    repositories_checksummed_count = IntegerField(null=True)
-    repositories_failed_count = IntegerField(null=True)
-    repositories_retrying_verification_count = IntegerField(null=True)
-    repositories_synced_count = IntegerField(null=True)
-    repositories_verification_failed_count = IntegerField(null=True)
-    repositories_verified_count = IntegerField(null=True)
-    revision = CharField(null=True)
-    status = JSONField()
-    status_message = CharField(null=True)
-    storage_configuration_digest = BlobField(null=True)
-    updated_at = DateTimeField()
-    version = CharField(null=True)
-    wikis_checksum_failed_count = IntegerField(null=True)
-    wikis_checksum_mismatch_count = IntegerField(null=True)
-    wikis_checksummed_count = IntegerField(null=True)
-    wikis_failed_count = IntegerField(null=True)
-    wikis_retrying_verification_count = IntegerField(null=True)
-    wikis_synced_count = IntegerField(null=True)
-    wikis_verification_failed_count = IntegerField(null=True)
-    wikis_verified_count = IntegerField(null=True)
+# class GeoNodeStatuses(BaseModel):
+#     attachments_count = IntegerField(null=True)
+#     attachments_failed_count = IntegerField(null=True)
+#     attachments_synced_count = IntegerField(null=True)
+#     attachments_synced_missing_on_primary_count = IntegerField(null=True)
+#     container_repositories_count = IntegerField(null=True)
+#     container_repositories_failed_count = IntegerField(null=True)
+#     container_repositories_registry_count = IntegerField(null=True)
+#     container_repositories_synced_count = IntegerField(null=True)
+#     created_at = DateTimeField()
+#     cursor_last_event_date = DateTimeField(null=True)
+#     cursor_last_event = IntegerField(db_column='cursor_last_event_id', null=True)
+#     db_replication_lag_seconds = IntegerField(null=True)
+#     design_repositories_count = IntegerField(null=True)
+#     design_repositories_failed_count = IntegerField(null=True)
+#     design_repositories_registry_count = IntegerField(null=True)
+#     design_repositories_synced_count = IntegerField(null=True)
+#     geo_node = ForeignKeyField(db_column='geo_node_id', rel_model=GeoNodes, to_field='id', unique=True)
+#     job_artifacts_count = IntegerField(null=True)
+#     job_artifacts_failed_count = IntegerField(null=True)
+#     job_artifacts_synced_count = IntegerField(null=True)
+#     job_artifacts_synced_missing_on_primary_count = IntegerField(null=True)
+#     last_event_date = DateTimeField(null=True)
+#     last_event = IntegerField(db_column='last_event_id', null=True)
+#     last_successful_status_check_at = DateTimeField(null=True)
+#     lfs_objects_count = IntegerField(null=True)
+#     lfs_objects_failed_count = IntegerField(null=True)
+#     lfs_objects_synced_count = IntegerField(null=True)
+#     lfs_objects_synced_missing_on_primary_count = IntegerField(null=True)
+#     projects_count = IntegerField(null=True)
+#     replication_slots_count = IntegerField(null=True)
+#     replication_slots_max_retained_wal_bytes = BigIntegerField(null=True)
+#     replication_slots_used_count = IntegerField(null=True)
+#     repositories_checksum_failed_count = IntegerField(null=True)
+#     repositories_checksum_mismatch_count = IntegerField(null=True)
+#     repositories_checksummed_count = IntegerField(null=True)
+#     repositories_failed_count = IntegerField(null=True)
+#     repositories_retrying_verification_count = IntegerField(null=True)
+#     repositories_synced_count = IntegerField(null=True)
+#     repositories_verification_failed_count = IntegerField(null=True)
+#     repositories_verified_count = IntegerField(null=True)
+#     revision = CharField(null=True)
+#     status = JSONField()
+#     status_message = CharField(null=True)
+#     storage_configuration_digest = BlobField(null=True)
+#     updated_at = DateTimeField()
+#     version = CharField(null=True)
+#     wikis_checksum_failed_count = IntegerField(null=True)
+#     wikis_checksum_mismatch_count = IntegerField(null=True)
+#     wikis_checksummed_count = IntegerField(null=True)
+#     wikis_failed_count = IntegerField(null=True)
+#     wikis_retrying_verification_count = IntegerField(null=True)
+#     wikis_synced_count = IntegerField(null=True)
+#     wikis_verification_failed_count = IntegerField(null=True)
+#     wikis_verified_count = IntegerField(null=True)
 
-    class Meta:
-        db_table = 'geo_node_statuses'
+#     class Meta:
+#         db_table = 'geo_node_statuses'
 
 class GitlabSubscriptionHistories(BaseModel):
     auto_renew = BooleanField(null=True)
@@ -4643,18 +4647,18 @@ class GroupDeployKeysGroups(BaseModel):
             (('group', 'group_deploy_key'), True),
         )
 
-class GroupDeployTokens(BaseModel):
-    created_at = DateTimeField()
-    deploy_token = ForeignKeyField(db_column='deploy_token_id', rel_model=DeployTokens, to_field='id')
-    group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    updated_at = DateTimeField()
+# class GroupDeployTokens(BaseModel):
+#     created_at = DateTimeField()
+#     deploy_token = ForeignKeyField(db_column='deploy_token_id', rel_model=DeployTokens, to_field='id')
+#     group = ForeignKeyField(db_column='group_id', rel_model=Namespaces, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'group_deploy_tokens'
-        indexes = (
-            (('group', 'deploy_token'), True),
-        )
+#     class Meta:
+#         db_table = 'group_deploy_tokens'
+#         indexes = (
+#             (('group', 'deploy_token'), True),
+#         )
 
 class GroupGroupLinks(BaseModel):
     created_at = DateTimeField()
@@ -5076,19 +5080,19 @@ class IssueTrackerData(BaseModel):
     class Meta:
         db_table = 'issue_tracker_data'
 
-class IssueUserMentions(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id', unique=True)
-    mentioned_groups_ids = UnknownField(null=True)  # ARRAY
-    mentioned_projects_ids = UnknownField(null=True)  # ARRAY
-    mentioned_users_ids = UnknownField(null=True)  # ARRAY
-    note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
+# class IssueUserMentions(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id', unique=True)
+#     #mentioned_groups_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_projects_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_users_ids = UnknownField(null=True)  # ARRAY
+#     note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
 
-    class Meta:
-        db_table = 'issue_user_mentions'
-        indexes = (
-            (('issue', 'note'), True),
-        )
+#     class Meta:
+#         db_table = 'issue_user_mentions'
+#         indexes = (
+#             (('issue', 'note'), True),
+#         )
 
 class PrometheusAlertEvents(BaseModel):
     ended_at = DateTimeField(null=True)
@@ -5405,272 +5409,272 @@ class Members(BaseModel):
             (('user', 'created_at'), False),
         )
 
-class MergeRequestAssignees(BaseModel):
-    created_at = DateTimeField(null=True)
-    id = BigIntegerField(primary_key=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class MergeRequestAssignees(BaseModel):
+#     created_at = DateTimeField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'merge_request_assignees'
-        indexes = (
-            (('user', 'merge_request'), True),
-        )
+#     class Meta:
+#         db_table = 'merge_request_assignees'
+#         indexes = (
+#             (('user', 'merge_request'), True),
+#         )
 
-class MergeRequestBlocks(BaseModel):
-    blocked_merge_request = ForeignKeyField(db_column='blocked_merge_request_id', rel_model=MergeRequests, to_field='id')
-    blocking_merge_request = ForeignKeyField(db_column='blocking_merge_request_id', rel_model=MergeRequests, related_name='merge_requests_blocking_merge_request_set', to_field='id')
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    updated_at = DateTimeField()
+# class MergeRequestBlocks(BaseModel):
+#     blocked_merge_request = ForeignKeyField(db_column='blocked_merge_request_id', rel_model=MergeRequests, to_field='id')
+#     blocking_merge_request = ForeignKeyField(db_column='blocking_merge_request_id', rel_model=MergeRequests, related_name='merge_requests_blocking_merge_request_set', to_field='id')
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'merge_request_blocks'
-        indexes = (
-            (('blocking_merge_request', 'blocked_merge_request'), True),
-        )
+#     class Meta:
+#         db_table = 'merge_request_blocks'
+#         indexes = (
+#             (('blocking_merge_request', 'blocked_merge_request'), True),
+#         )
 
-class MergeRequestCleanupSchedules(BaseModel):
-    completed_at = DateTimeField(null=True)
-    created_at = DateTimeField()
-    failed_count = IntegerField()
-    merge_request = ForeignKeyField(db_column='merge_request_id', primary_key=True, rel_model=MergeRequests, to_field='id')
-    scheduled_at = DateTimeField(index=True)
-    status = IntegerField(index=True)
-    updated_at = DateTimeField()
+# class MergeRequestCleanupSchedules(BaseModel):
+#     completed_at = DateTimeField(null=True)
+#     created_at = DateTimeField()
+#     failed_count = IntegerField()
+#     merge_request = ForeignKeyField(db_column='merge_request_id', primary_key=True, rel_model=MergeRequests, to_field='id')
+#     scheduled_at = DateTimeField(index=True)
+#     status = IntegerField(index=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'merge_request_cleanup_schedules'
+#     class Meta:
+#         db_table = 'merge_request_cleanup_schedules'
 
-class MergeRequestContextCommits(BaseModel):
-    author_email = TextField(null=True)
-    author_name = TextField(null=True)
-    authored_date = DateTimeField(null=True)
-    committed_date = DateTimeField(null=True)
-    committer_email = TextField(null=True)
-    committer_name = TextField(null=True)
-    id = BigIntegerField(primary_key=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
-    message = TextField(null=True)
-    relative_order = IntegerField()
-    sha = BlobField()
-    trailers = JSONField()
+# class MergeRequestContextCommits(BaseModel):
+#     author_email = TextField(null=True)
+#     author_name = TextField(null=True)
+#     authored_date = DateTimeField(null=True)
+#     committed_date = DateTimeField(null=True)
+#     committer_email = TextField(null=True)
+#     committer_name = TextField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
+#     message = TextField(null=True)
+#     relative_order = IntegerField()
+#     sha = BlobField()
+#     trailers = JSONField()
 
-    class Meta:
-        db_table = 'merge_request_context_commits'
-        indexes = (
-            (('sha', 'merge_request'), True),
-        )
+#     class Meta:
+#         db_table = 'merge_request_context_commits'
+#         indexes = (
+#             (('sha', 'merge_request'), True),
+#         )
 
-class MergeRequestContextCommitDiffFiles(BaseModel):
-    a_mode = CharField()
-    b_mode = CharField()
-    binary = BooleanField(null=True)
-    deleted_file = BooleanField()
-    diff = TextField(null=True)
-    merge_request_context_commit = ForeignKeyField(db_column='merge_request_context_commit_id', rel_model=MergeRequestContextCommits, to_field='id')
-    new_file = BooleanField()
-    new_path = TextField()
-    old_path = TextField()
-    relative_order = IntegerField()
-    renamed_file = BooleanField()
-    sha = BlobField()
-    too_large = BooleanField()
+# class MergeRequestContextCommitDiffFiles(BaseModel):
+#     a_mode = CharField()
+#     b_mode = CharField()
+#     binary = BooleanField(null=True)
+#     deleted_file = BooleanField()
+#     diff = TextField(null=True)
+#     merge_request_context_commit = ForeignKeyField(db_column='merge_request_context_commit_id', rel_model=MergeRequestContextCommits, to_field='id')
+#     new_file = BooleanField()
+#     new_path = TextField()
+#     old_path = TextField()
+#     relative_order = IntegerField()
+#     renamed_file = BooleanField()
+#     sha = BlobField()
+#     too_large = BooleanField()
 
-    class Meta:
-        db_table = 'merge_request_context_commit_diff_files'
-        indexes = (
-            (('relative_order', 'merge_request_context_commit'), True),
-            (('sha', 'merge_request_context_commit'), False),
-        )
-        primary_key = CompositeKey('merge_request_context_commit', 'relative_order')
+#     class Meta:
+#         db_table = 'merge_request_context_commit_diff_files'
+#         indexes = (
+#             (('relative_order', 'merge_request_context_commit'), True),
+#             (('sha', 'merge_request_context_commit'), False),
+#         )
+#         primary_key = CompositeKey('merge_request_context_commit', 'relative_order')
 
-class MergeRequestDiffCommitUsers(BaseModel):
-    email = TextField(null=True)
-    id = BigIntegerField(primary_key=True)
-    name = TextField(null=True)
+# class MergeRequestDiffCommitUsers(BaseModel):
+#     email = TextField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     name = TextField(null=True)
 
-    class Meta:
-        db_table = 'merge_request_diff_commit_users'
-        indexes = (
-            (('name', 'email'), True),
-        )
+#     class Meta:
+#         db_table = 'merge_request_diff_commit_users'
+#         indexes = (
+#             (('name', 'email'), True),
+#         )
 
-class MergeRequestDiffCommits(BaseModel):
-    author_email = TextField(null=True)
-    author_name = TextField(null=True)
-    authored_date = DateTimeField(null=True)
-    commit_author = BigIntegerField(db_column='commit_author_id', null=True)
-    committed_date = DateTimeField(null=True)
-    committer_email = TextField(null=True)
-    committer = BigIntegerField(db_column='committer_id', null=True)
-    committer_name = TextField(null=True)
-    merge_request_diff = ForeignKeyField(db_column='merge_request_diff_id', rel_model=MergeRequestDiffs, to_field='id')
-    message = TextField(null=True)
-    relative_order = IntegerField()
-    sha = BlobField(index=True)
-    trailers = JSONField()
+# class MergeRequestDiffCommits(BaseModel):
+#     author_email = TextField(null=True)
+#     author_name = TextField(null=True)
+#     authored_date = DateTimeField(null=True)
+#     commit_author = BigIntegerField(db_column='commit_author_id', null=True)
+#     committed_date = DateTimeField(null=True)
+#     committer_email = TextField(null=True)
+#     committer = BigIntegerField(db_column='committer_id', null=True)
+#     committer_name = TextField(null=True)
+#     merge_request_diff = ForeignKeyField(db_column='merge_request_diff_id', rel_model=MergeRequestDiffs, to_field='id')
+#     message = TextField(null=True)
+#     relative_order = IntegerField()
+#     sha = BlobField(index=True)
+#     trailers = JSONField()
 
-    class Meta:
-        db_table = 'merge_request_diff_commits'
-        indexes = (
-            (('merge_request_diff', 'relative_order'), True),
-        )
-        primary_key = CompositeKey('merge_request_diff', 'relative_order')
+#     class Meta:
+#         db_table = 'merge_request_diff_commits'
+#         indexes = (
+#             (('merge_request_diff', 'relative_order'), True),
+#         )
+#         primary_key = CompositeKey('merge_request_diff', 'relative_order')
 
-class MergeRequestDiffDetails(BaseModel):
-    merge_request_diff = ForeignKeyField(db_column='merge_request_diff_id', primary_key=True, rel_model=MergeRequestDiffs, to_field='id')
-    verification_checksum = BlobField(null=True)
-    verification_failure = TextField(null=True)
-    verification_retry_at = DateTimeField(index=True, null=True)
-    verification_retry_count = IntegerField(null=True)
-    verification_started_at = DateTimeField(null=True)
-    verification_state = IntegerField(index=True)
-    verified_at = DateTimeField(index=True, null=True)
+# class MergeRequestDiffDetails(BaseModel):
+#     merge_request_diff = ForeignKeyField(db_column='merge_request_diff_id', primary_key=True, rel_model=MergeRequestDiffs, to_field='id')
+#     verification_checksum = BlobField(null=True)
+#     verification_failure = TextField(null=True)
+#     verification_retry_at = DateTimeField(index=True, null=True)
+#     verification_retry_count = IntegerField(null=True)
+#     verification_started_at = DateTimeField(null=True)
+#     verification_state = IntegerField(index=True)
+#     verified_at = DateTimeField(index=True, null=True)
 
-    class Meta:
-        db_table = 'merge_request_diff_details'
+#     class Meta:
+#         db_table = 'merge_request_diff_details'
 
-class MergeRequestDiffFiles(BaseModel):
-    a_mode = CharField()
-    b_mode = CharField()
-    binary = BooleanField(null=True)
-    deleted_file = BooleanField()
-    diff = TextField(null=True)
-    external_diff_offset = IntegerField(null=True)
-    external_diff_size = IntegerField(null=True)
-    merge_request_diff = ForeignKeyField(db_column='merge_request_diff_id', rel_model=MergeRequestDiffs, to_field='id')
-    new_file = BooleanField()
-    new_path = TextField()
-    old_path = TextField()
-    relative_order = IntegerField()
-    renamed_file = BooleanField()
-    too_large = BooleanField()
+# class MergeRequestDiffFiles(BaseModel):
+#     a_mode = CharField()
+#     b_mode = CharField()
+#     binary = BooleanField(null=True)
+#     deleted_file = BooleanField()
+#     diff = TextField(null=True)
+#     external_diff_offset = IntegerField(null=True)
+#     external_diff_size = IntegerField(null=True)
+#     merge_request_diff = ForeignKeyField(db_column='merge_request_diff_id', rel_model=MergeRequestDiffs, to_field='id')
+#     new_file = BooleanField()
+#     new_path = TextField()
+#     old_path = TextField()
+#     relative_order = IntegerField()
+#     renamed_file = BooleanField()
+#     too_large = BooleanField()
 
-    class Meta:
-        db_table = 'merge_request_diff_files'
-        indexes = (
-            (('merge_request_diff', 'relative_order'), True),
-        )
-        primary_key = CompositeKey('merge_request_diff', 'relative_order')
+#     class Meta:
+#         db_table = 'merge_request_diff_files'
+#         indexes = (
+#             (('merge_request_diff', 'relative_order'), True),
+#         )
+#         primary_key = CompositeKey('merge_request_diff', 'relative_order')
 
-class MergeRequestMetrics(BaseModel):
-    added_lines = IntegerField(null=True)
-    commits_count = IntegerField(null=True)
-    created_at = DateTimeField()
-    diff_size = IntegerField(null=True)
-    first_approved_at = DateTimeField(null=True)
-    first_comment_at = DateTimeField(null=True)
-    first_commit_at = DateTimeField(null=True)
-    first_deployed_to_production_at = DateTimeField(index=True, null=True)
-    first_reassigned_at = DateTimeField(null=True)
-    last_commit_at = DateTimeField(null=True)
-    latest_build_finished_at = DateTimeField(null=True)
-    latest_build_started_at = DateTimeField(null=True)
-    latest_closed_at = DateTimeField(index=True, null=True)
-    latest_closed_by = ForeignKeyField(db_column='latest_closed_by_id', null=True, rel_model=Users, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id', unique=True)
-    merged_at = DateTimeField(index=True, null=True)
-    merged_by = ForeignKeyField(db_column='merged_by_id', null=True, rel_model=Users, related_name='users_merged_by_set', to_field='id')
-    modified_paths_size = IntegerField(null=True)
-    pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
-    removed_lines = IntegerField(null=True)
-    target_project = ForeignKeyField(db_column='target_project_id', null=True, rel_model=Projects, to_field='id')
-    updated_at = DateTimeField()
+# class MergeRequestMetrics(BaseModel):
+#     added_lines = IntegerField(null=True)
+#     commits_count = IntegerField(null=True)
+#     created_at = DateTimeField()
+#     diff_size = IntegerField(null=True)
+#     first_approved_at = DateTimeField(null=True)
+#     first_comment_at = DateTimeField(null=True)
+#     first_commit_at = DateTimeField(null=True)
+#     first_deployed_to_production_at = DateTimeField(index=True, null=True)
+#     first_reassigned_at = DateTimeField(null=True)
+#     last_commit_at = DateTimeField(null=True)
+#     latest_build_finished_at = DateTimeField(null=True)
+#     latest_build_started_at = DateTimeField(null=True)
+#     latest_closed_at = DateTimeField(index=True, null=True)
+#     latest_closed_by = ForeignKeyField(db_column='latest_closed_by_id', null=True, rel_model=Users, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id', unique=True)
+#     merged_at = DateTimeField(index=True, null=True)
+#     merged_by = ForeignKeyField(db_column='merged_by_id', null=True, rel_model=Users, related_name='users_merged_by_set', to_field='id')
+#     modified_paths_size = IntegerField(null=True)
+#     pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
+#     removed_lines = IntegerField(null=True)
+#     target_project = ForeignKeyField(db_column='target_project_id', null=True, rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'merge_request_metrics'
-        indexes = (
-            (('merged_at', 'created_at', 'target_project'), False),
-            (('merged_at', 'merge_request'), False),
-            (('merged_at', 'target_project', 'id'), False),
-        )
+#     class Meta:
+#         db_table = 'merge_request_metrics'
+#         indexes = (
+#             (('merged_at', 'created_at', 'target_project'), False),
+#             (('merged_at', 'merge_request'), False),
+#             (('merged_at', 'target_project', 'id'), False),
+#         )
 
-class MergeRequestReviewers(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
-    state = IntegerField()
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class MergeRequestReviewers(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
+#     state = IntegerField()
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'merge_request_reviewers'
-        indexes = (
-            (('user', 'merge_request'), True),
-        )
+#     class Meta:
+#         db_table = 'merge_request_reviewers'
+#         indexes = (
+#             (('user', 'merge_request'), True),
+#         )
 
-class MergeRequestUserMentions(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    mentioned_groups_ids = UnknownField(null=True)  # ARRAY
-    mentioned_projects_ids = UnknownField(null=True)  # ARRAY
-    mentioned_users_ids = UnknownField(null=True)  # ARRAY
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id', unique=True)
-    note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
+# class MergeRequestUserMentions(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     #mentioned_groups_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_projects_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_users_ids = UnknownField(null=True)  # ARRAY
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id', unique=True)
+#     note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
 
-    class Meta:
-        db_table = 'merge_request_user_mentions'
-        indexes = (
-            (('merge_request', 'note'), True),
-        )
+#     class Meta:
+#         db_table = 'merge_request_user_mentions'
+#         indexes = (
+#             (('merge_request', 'note'), True),
+#         )
 
-class MergeRequestsClosingIssues(BaseModel):
-    created_at = DateTimeField()
-    issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
-    updated_at = DateTimeField()
+# class MergeRequestsClosingIssues(BaseModel):
+#     created_at = DateTimeField()
+#     issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'merge_requests_closing_issues'
+#     class Meta:
+#         db_table = 'merge_requests_closing_issues'
 
-class MergeTrains(BaseModel):
-    created_at = DateTimeField()
-    duration = IntegerField(null=True)
-    id = BigIntegerField(primary_key=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id', unique=True)
-    merged_at = DateTimeField(null=True)
-    pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
-    status = IntegerField()
-    target_branch = TextField()
-    target_project = ForeignKeyField(db_column='target_project_id', rel_model=Projects, to_field='id')
-    updated_at = DateTimeField()
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class MergeTrains(BaseModel):
+#     created_at = DateTimeField()
+#     duration = IntegerField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id', unique=True)
+#     merged_at = DateTimeField(null=True)
+#     pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
+#     status = IntegerField()
+#     target_branch = TextField()
+#     target_project = ForeignKeyField(db_column='target_project_id', rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField()
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'merge_trains'
-        indexes = (
-            (('target_branch', 'status', 'target_project'), False),
-        )
+#     class Meta:
+#         db_table = 'merge_trains'
+#         indexes = (
+#             (('target_branch', 'status', 'target_project'), False),
+#         )
 
-class MetricsDashboardAnnotations(BaseModel):
-    cluster = ForeignKeyField(db_column='cluster_id', null=True, rel_model=Clusters, to_field='id')
-    dashboard_path = CharField()
-    description = TextField()
-    ending_at = DateTimeField(null=True)
-    environment = ForeignKeyField(db_column='environment_id', null=True, rel_model=Environments, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    panel_xid = CharField(null=True)
-    starting_at = DateTimeField()
+# class MetricsDashboardAnnotations(BaseModel):
+#     cluster = ForeignKeyField(db_column='cluster_id', null=True, rel_model=Clusters, to_field='id')
+#     dashboard_path = CharField()
+#     description = TextField()
+#     ending_at = DateTimeField(null=True)
+#     environment = ForeignKeyField(db_column='environment_id', null=True, rel_model=Environments, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     panel_xid = CharField(null=True)
+#     starting_at = DateTimeField()
 
-    class Meta:
-        db_table = 'metrics_dashboard_annotations'
-        indexes = (
-            (('starting_at', 'ending_at', 'cluster', 'dashboard_path'), False),
-            (('starting_at', 'ending_at', 'environment', 'dashboard_path'), False),
-        )
+#     class Meta:
+#         db_table = 'metrics_dashboard_annotations'
+#         indexes = (
+#             (('starting_at', 'ending_at', 'cluster', 'dashboard_path'), False),
+#             (('starting_at', 'ending_at', 'environment', 'dashboard_path'), False),
+#         )
 
-class MetricsUsersStarredDashboards(BaseModel):
-    created_at = DateTimeField()
-    dashboard_path = TextField()
-    id = BigIntegerField(primary_key=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    updated_at = DateTimeField()
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class MetricsUsersStarredDashboards(BaseModel):
+#     created_at = DateTimeField()
+#     dashboard_path = TextField()
+#     id = BigIntegerField(primary_key=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField()
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'metrics_users_starred_dashboards'
-        indexes = (
-            (('project', 'user', 'dashboard_path'), True),
-        )
+#     class Meta:
+#         db_table = 'metrics_users_starred_dashboards'
+#         indexes = (
+#             (('project', 'user', 'dashboard_path'), True),
+#         )
 
 class MilestoneReleases(BaseModel):
     milestone = ForeignKeyField(db_column='milestone_id', rel_model=Milestones, to_field='id')
@@ -5683,99 +5687,99 @@ class MilestoneReleases(BaseModel):
         )
         primary_key = CompositeKey('milestone', 'release')
 
-class NamespaceAdminNotes(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    namespace = ForeignKeyField(db_column='namespace_id', rel_model=Namespaces, to_field='id')
-    note = TextField(null=True)
-    updated_at = DateTimeField()
+# class NamespaceAdminNotes(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     namespace = ForeignKeyField(db_column='namespace_id', rel_model=Namespaces, to_field='id')
+#     note = TextField(null=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'namespace_admin_notes'
+#     class Meta:
+#         db_table = 'namespace_admin_notes'
 
-class NamespaceAggregationSchedules(BaseModel):
-    namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
+# class NamespaceAggregationSchedules(BaseModel):
+#     namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
 
-    class Meta:
-        db_table = 'namespace_aggregation_schedules'
+#     class Meta:
+#         db_table = 'namespace_aggregation_schedules'
 
-class NamespaceLimits(BaseModel):
-    additional_purchased_storage_ends_on = DateField(null=True)
-    additional_purchased_storage_size = BigIntegerField()
-    namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
-    temporary_storage_increase_ends_on = DateField(null=True)
+# class NamespaceLimits(BaseModel):
+#     additional_purchased_storage_ends_on = DateField(null=True)
+#     additional_purchased_storage_size = BigIntegerField()
+#     namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
+#     temporary_storage_increase_ends_on = DateField(null=True)
 
-    class Meta:
-        db_table = 'namespace_limits'
+#     class Meta:
+#         db_table = 'namespace_limits'
 
-class NamespacePackageSettings(BaseModel):
-    generic_duplicate_exception_regex = TextField()
-    generic_duplicates_allowed = BooleanField()
-    maven_duplicate_exception_regex = TextField()
-    maven_duplicates_allowed = BooleanField()
-    namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
+# class NamespacePackageSettings(BaseModel):
+#     generic_duplicate_exception_regex = TextField()
+#     generic_duplicates_allowed = BooleanField()
+#     maven_duplicate_exception_regex = TextField()
+#     maven_duplicates_allowed = BooleanField()
+#     namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
 
-    class Meta:
-        db_table = 'namespace_package_settings'
+#     class Meta:
+#         db_table = 'namespace_package_settings'
 
-class NamespaceRootStorageStatistics(BaseModel):
-    build_artifacts_size = BigIntegerField()
-    lfs_objects_size = BigIntegerField()
-    namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
-    packages_size = BigIntegerField()
-    pipeline_artifacts_size = BigIntegerField()
-    repository_size = BigIntegerField()
-    snippets_size = BigIntegerField()
-    storage_size = BigIntegerField()
-    updated_at = DateTimeField()
-    uploads_size = BigIntegerField()
-    wiki_size = BigIntegerField()
+# class NamespaceRootStorageStatistics(BaseModel):
+#     build_artifacts_size = BigIntegerField()
+#     lfs_objects_size = BigIntegerField()
+#     namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
+#     packages_size = BigIntegerField()
+#     pipeline_artifacts_size = BigIntegerField()
+#     repository_size = BigIntegerField()
+#     snippets_size = BigIntegerField()
+#     storage_size = BigIntegerField()
+#     updated_at = DateTimeField()
+#     uploads_size = BigIntegerField()
+#     wiki_size = BigIntegerField()
 
-    class Meta:
-        db_table = 'namespace_root_storage_statistics'
+#     class Meta:
+#         db_table = 'namespace_root_storage_statistics'
 
-class NamespaceSettings(BaseModel):
-    allow_mfa_for_subgroups = BooleanField()
-    created_at = DateTimeField()
-    default_branch_name = TextField(null=True)
-    delayed_project_removal = BooleanField(null=True)
-    jobs_to_be_done = IntegerField(null=True)
-    lock_delayed_project_removal = BooleanField()
-    namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
-    new_user_signups_cap = IntegerField(null=True)
-    prevent_forking_outside_group = BooleanField()
-    prevent_sharing_groups_outside_hierarchy = BooleanField()
-    repository_read_only = BooleanField()
-    resource_access_token_creation_allowed = BooleanField()
-    setup_for_company = BooleanField(null=True)
-    updated_at = DateTimeField()
+# class NamespaceSettings(BaseModel):
+#     allow_mfa_for_subgroups = BooleanField()
+#     created_at = DateTimeField()
+#     default_branch_name = TextField(null=True)
+#     delayed_project_removal = BooleanField(null=True)
+#     jobs_to_be_done = IntegerField(null=True)
+#     lock_delayed_project_removal = BooleanField()
+#     namespace = ForeignKeyField(db_column='namespace_id', primary_key=True, rel_model=Namespaces, to_field='id')
+#     new_user_signups_cap = IntegerField(null=True)
+#     prevent_forking_outside_group = BooleanField()
+#     prevent_sharing_groups_outside_hierarchy = BooleanField()
+#     repository_read_only = BooleanField()
+#     resource_access_token_creation_allowed = BooleanField()
+#     setup_for_company = BooleanField(null=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'namespace_settings'
+#     class Meta:
+#         db_table = 'namespace_settings'
 
-class NamespaceStatistics(BaseModel):
-    namespace = ForeignKeyField(db_column='namespace_id', rel_model=Namespaces, to_field='id', unique=True)
-    shared_runners_seconds = IntegerField()
-    shared_runners_seconds_last_reset = DateTimeField(null=True)
-    storage_size = BigIntegerField()
-    wiki_size = BigIntegerField()
+# class NamespaceStatistics(BaseModel):
+#     namespace = ForeignKeyField(db_column='namespace_id', rel_model=Namespaces, to_field='id', unique=True)
+#     shared_runners_seconds = IntegerField()
+#     shared_runners_seconds_last_reset = DateTimeField(null=True)
+#     storage_size = BigIntegerField()
+#     wiki_size = BigIntegerField()
 
-    class Meta:
-        db_table = 'namespace_statistics'
+#     class Meta:
+#         db_table = 'namespace_statistics'
 
-class NoteDiffFiles(BaseModel):
-    a_mode = CharField()
-    b_mode = CharField()
-    deleted_file = BooleanField()
-    diff = TextField()
-    diff_note = ForeignKeyField(db_column='diff_note_id', rel_model=Notes, to_field='id', unique=True)
-    new_file = BooleanField()
-    new_path = TextField()
-    old_path = TextField()
-    renamed_file = BooleanField()
+# class NoteDiffFiles(BaseModel):
+#     a_mode = CharField()
+#     b_mode = CharField()
+#     deleted_file = BooleanField()
+#     diff = TextField()
+#     diff_note = ForeignKeyField(db_column='diff_note_id', rel_model=Notes, to_field='id', unique=True)
+#     new_file = BooleanField()
+#     new_path = TextField()
+#     old_path = TextField()
+#     renamed_file = BooleanField()
 
-    class Meta:
-        db_table = 'note_diff_files'
+#     class Meta:
+#         db_table = 'note_diff_files'
 
 class NotificationSettings(BaseModel):
     change_reviewer_merge_request = BooleanField(null=True)
@@ -6416,66 +6420,66 @@ class PackagesTags(BaseModel):
             (('package', 'updated_at'), False),
         )
 
-class PagesDeployments(BaseModel):
-    ci_build = ForeignKeyField(db_column='ci_build_id', null=True, rel_model=CiBuilds, to_field='id')
-    created_at = DateTimeField()
-    file = TextField()
-    file_count = IntegerField()
-    file_sha256 = BlobField()
-    file_store = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    size = BigIntegerField(null=True)
-    updated_at = DateTimeField()
+# class PagesDeployments(BaseModel):
+#     ci_build = ForeignKeyField(db_column='ci_build_id', null=True, rel_model=CiBuilds, to_field='id')
+#     created_at = DateTimeField()
+#     file = TextField()
+#     file_count = IntegerField()
+#     file_sha256 = BlobField()
+#     file_store = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     size = BigIntegerField(null=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'pages_deployments'
-        indexes = (
-            (('id', 'file_store'), False),
-        )
+#     class Meta:
+#         db_table = 'pages_deployments'
+#         indexes = (
+#             (('id', 'file_store'), False),
+#         )
 
-class PagesDomains(BaseModel):
-    auto_ssl_enabled = BooleanField()
-    auto_ssl_failed = BooleanField()
-    certificate = TextField(null=True)
-    certificate_source = IntegerField()
-    certificate_valid_not_after = DateTimeField(index=True, null=True)
-    certificate_valid_not_before = DateTimeField(null=True)
-    domain = CharField(null=True)
-    enabled_until = DateTimeField(null=True)
-    encrypted_key = TextField(null=True)
-    encrypted_key_iv = CharField(null=True)
-    encrypted_key_salt = CharField(null=True)
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    remove_at = DateTimeField(index=True, null=True)
-    scope = IntegerField(index=True)
-    usage = IntegerField(index=True)
-    verification_code = CharField()
-    verified_at = DateTimeField(index=True, null=True)
-    wildcard = BooleanField(index=True)
+# class PagesDomains(BaseModel):
+#     auto_ssl_enabled = BooleanField()
+#     auto_ssl_failed = BooleanField()
+#     certificate = TextField(null=True)
+#     certificate_source = IntegerField()
+#     certificate_valid_not_after = DateTimeField(index=True, null=True)
+#     certificate_valid_not_before = DateTimeField(null=True)
+#     domain = CharField(null=True)
+#     enabled_until = DateTimeField(null=True)
+#     encrypted_key = TextField(null=True)
+#     encrypted_key_iv = CharField(null=True)
+#     encrypted_key_salt = CharField(null=True)
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     remove_at = DateTimeField(index=True, null=True)
+#     scope = IntegerField(index=True)
+#     usage = IntegerField(index=True)
+#     verification_code = CharField()
+#     verified_at = DateTimeField(index=True, null=True)
+#     wildcard = BooleanField(index=True)
 
-    class Meta:
-        db_table = 'pages_domains'
-        indexes = (
-            (('domain', 'wildcard'), True),
-            (('enabled_until', 'project'), False),
-            (('verified_at', 'enabled_until'), False),
-        )
+#     class Meta:
+#         db_table = 'pages_domains'
+#         indexes = (
+#             (('domain', 'wildcard'), True),
+#             (('enabled_until', 'project'), False),
+#             (('verified_at', 'enabled_until'), False),
+#         )
 
-class PagesDomainAcmeOrders(BaseModel):
-    challenge_file_content = TextField()
-    challenge_token = CharField(index=True)
-    created_at = DateTimeField()
-    encrypted_private_key = TextField()
-    encrypted_private_key_iv = TextField()
-    expires_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    pages_domain = ForeignKeyField(db_column='pages_domain_id', rel_model=PagesDomains, to_field='id')
-    updated_at = DateTimeField()
-    url = CharField()
+# class PagesDomainAcmeOrders(BaseModel):
+#     challenge_file_content = TextField()
+#     challenge_token = CharField(index=True)
+#     created_at = DateTimeField()
+#     encrypted_private_key = TextField()
+#     encrypted_private_key_iv = TextField()
+#     expires_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     pages_domain = ForeignKeyField(db_column='pages_domain_id', rel_model=PagesDomains, to_field='id')
+#     updated_at = DateTimeField()
+#     url = CharField()
 
-    class Meta:
-        db_table = 'pages_domain_acme_orders'
+#     class Meta:
+#         db_table = 'pages_domain_acme_orders'
 
 class PartitionedForeignKeys(BaseModel):
     cascade_delete = BooleanField()
@@ -6863,16 +6867,16 @@ class ProjectDailyStatistics(BaseModel):
             (('project', 'date'), True),
         )
 
-class ProjectDeployTokens(BaseModel):
-    created_at = DateTimeField()
-    deploy_token = ForeignKeyField(db_column='deploy_token_id', rel_model=DeployTokens, to_field='id')
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+# class ProjectDeployTokens(BaseModel):
+#     created_at = DateTimeField()
+#     deploy_token = ForeignKeyField(db_column='deploy_token_id', rel_model=DeployTokens, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
 
-    class Meta:
-        db_table = 'project_deploy_tokens'
-        indexes = (
-            (('project', 'deploy_token'), True),
-        )
+#     class Meta:
+#         db_table = 'project_deploy_tokens'
+#         indexes = (
+#             (('project', 'deploy_token'), True),
+#         )
 
 class ProjectErrorTrackingSettings(BaseModel):
     api_url = CharField(null=True)
@@ -7003,14 +7007,14 @@ class ProjectMirrorData(BaseModel):
             (('retry_count', 'next_execution_timestamp'), False),
         )
 
-class ProjectPagesMetadata(BaseModel):
-    artifacts_archive = ForeignKeyField(db_column='artifacts_archive_id', null=True, rel_model=CiJobArtifacts, to_field='id')
-    deployed = BooleanField()
-    pages_deployment = ForeignKeyField(db_column='pages_deployment_id', null=True, rel_model=PagesDeployments, to_field='id')
-    project = ForeignKeyField(db_column='project_id', primary_key=True, rel_model=Projects, to_field='id')
+# class ProjectPagesMetadata(BaseModel):
+#     artifacts_archive = ForeignKeyField(db_column='artifacts_archive_id', null=True, rel_model=CiJobArtifacts, to_field='id')
+#     deployed = BooleanField()
+#     pages_deployment = ForeignKeyField(db_column='pages_deployment_id', null=True, rel_model=PagesDeployments, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', primary_key=True, rel_model=Projects, to_field='id')
 
-    class Meta:
-        db_table = 'project_pages_metadata'
+#     class Meta:
+#         db_table = 'project_pages_metadata'
 
 class ProjectRepositories(BaseModel):
     disk_path = CharField(unique=True)
@@ -7349,82 +7353,82 @@ class Requirements(BaseModel):
             (('iid', 'project'), True),
         )
 
-class RequirementsManagementTestReports(BaseModel):
-    author = ForeignKeyField(db_column='author_id', null=True, rel_model=Users, to_field='id')
-    build = ForeignKeyField(db_column='build_id', null=True, rel_model=CiBuilds, to_field='id')
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
-    requirement = ForeignKeyField(db_column='requirement_id', null=True, rel_model=Requirements, to_field='id')
-    state = IntegerField()
+# class RequirementsManagementTestReports(BaseModel):
+#     author = ForeignKeyField(db_column='author_id', null=True, rel_model=Users, to_field='id')
+#     build = ForeignKeyField(db_column='build_id', null=True, rel_model=CiBuilds, to_field='id')
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
+#     requirement = ForeignKeyField(db_column='requirement_id', null=True, rel_model=Requirements, to_field='id')
+#     state = IntegerField()
 
-    class Meta:
-        db_table = 'requirements_management_test_reports'
+#     class Meta:
+#         db_table = 'requirements_management_test_reports'
 
-class ResourceIterationEvents(BaseModel):
-    action = IntegerField()
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
-    iteration = ForeignKeyField(db_column='iteration_id', null=True, rel_model=Sprints, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class ResourceIterationEvents(BaseModel):
+#     action = IntegerField()
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
+#     iteration = ForeignKeyField(db_column='iteration_id', null=True, rel_model=Sprints, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'resource_iteration_events'
+#     class Meta:
+#         db_table = 'resource_iteration_events'
 
-class ResourceLabelEvents(BaseModel):
-    action = IntegerField()
-    cached_markdown_version = IntegerField(null=True)
-    created_at = DateTimeField()
-    epic = ForeignKeyField(db_column='epic_id', null=True, rel_model=Epics, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
-    label = ForeignKeyField(db_column='label_id', null=True, rel_model=Labels, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
-    reference = TextField(null=True)
-    reference_html = TextField(null=True)
-    user = ForeignKeyField(db_column='user_id', null=True, rel_model=Users, to_field='id')
+# class ResourceLabelEvents(BaseModel):
+#     action = IntegerField()
+#     cached_markdown_version = IntegerField(null=True)
+#     created_at = DateTimeField()
+#     epic = ForeignKeyField(db_column='epic_id', null=True, rel_model=Epics, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
+#     label = ForeignKeyField(db_column='label_id', null=True, rel_model=Labels, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
+#     reference = TextField(null=True)
+#     reference_html = TextField(null=True)
+#     user = ForeignKeyField(db_column='user_id', null=True, rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'resource_label_events'
-        indexes = (
-            (('action', 'issue', 'label'), False),
-            (('action', 'label'), False),
-            (('action', 'merge_request', 'label'), False),
-        )
+#     class Meta:
+#         db_table = 'resource_label_events'
+#         indexes = (
+#             (('action', 'issue', 'label'), False),
+#             (('action', 'label'), False),
+#             (('action', 'merge_request', 'label'), False),
+#         )
 
-class ResourceMilestoneEvents(BaseModel):
-    action = IntegerField()
-    created_at = DateTimeField(index=True)
-    id = BigIntegerField(primary_key=True)
-    issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
-    milestone = ForeignKeyField(db_column='milestone_id', null=True, rel_model=Milestones, to_field='id')
-    state = IntegerField()
-    user = ForeignKeyField(db_column='user_id', null=True, rel_model=Users, to_field='id')
+# class ResourceMilestoneEvents(BaseModel):
+#     action = IntegerField()
+#     created_at = DateTimeField(index=True)
+#     id = BigIntegerField(primary_key=True)
+#     issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
+#     milestone = ForeignKeyField(db_column='milestone_id', null=True, rel_model=Milestones, to_field='id')
+#     state = IntegerField()
+#     user = ForeignKeyField(db_column='user_id', null=True, rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'resource_milestone_events'
+#     class Meta:
+#         db_table = 'resource_milestone_events'
 
-class ResourceStateEvents(BaseModel):
-    close_after_error_tracking_resolve = BooleanField()
-    close_auto_resolve_prometheus_alert = BooleanField()
-    created_at = DateTimeField()
-    epic = ForeignKeyField(db_column='epic_id', null=True, rel_model=Epics, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
-    source_commit = TextField(null=True)
-    source_merge_request = ForeignKeyField(db_column='source_merge_request_id', null=True, rel_model=MergeRequests, related_name='merge_requests_source_merge_request_set', to_field='id')
-    state = IntegerField()
-    user = ForeignKeyField(db_column='user_id', null=True, rel_model=Users, to_field='id')
+# class ResourceStateEvents(BaseModel):
+#     close_after_error_tracking_resolve = BooleanField()
+#     close_auto_resolve_prometheus_alert = BooleanField()
+#     created_at = DateTimeField()
+#     epic = ForeignKeyField(db_column='epic_id', null=True, rel_model=Epics, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
+#     source_commit = TextField(null=True)
+#     source_merge_request = ForeignKeyField(db_column='source_merge_request_id', null=True, rel_model=MergeRequests, related_name='merge_requests_source_merge_request_set', to_field='id')
+#     state = IntegerField()
+#     user = ForeignKeyField(db_column='user_id', null=True, rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'resource_state_events'
-        indexes = (
-            (('issue', 'created_at'), False),
-        )
+#     class Meta:
+#         db_table = 'resource_state_events'
+#         indexes = (
+#             (('issue', 'created_at'), False),
+#         )
 
 class ResourceWeightEvents(BaseModel):
     created_at = DateTimeField()
@@ -7502,160 +7506,160 @@ class ScimOauthAccessTokens(BaseModel):
             (('group', 'token_encrypted'), True),
         )
 
-class VulnerabilityScanners(BaseModel):
-    created_at = DateTimeField()
-    external = CharField(db_column='external_id')
-    id = BigIntegerField(primary_key=True)
-    name = CharField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    updated_at = DateTimeField()
-    vendor = TextField()
+# class VulnerabilityScanners(BaseModel):
+#     created_at = DateTimeField()
+#     external = CharField(db_column='external_id')
+#     id = BigIntegerField(primary_key=True)
+#     name = CharField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField()
+#     vendor = TextField()
 
-    class Meta:
-        db_table = 'vulnerability_scanners'
-        indexes = (
-            (('project', 'external'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_scanners'
+#         indexes = (
+#             (('project', 'external'), True),
+#         )
 
-class SecurityScans(BaseModel):
-    build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
-    created_at = DateTimeField(index=True)
-    id = BigIntegerField(primary_key=True)
-    info = JSONField()
-    latest = BooleanField()
-    pipeline = BigIntegerField(db_column='pipeline_id', index=True, null=True)
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    scan_type = IntegerField(index=True)
-    status = IntegerField()
-    updated_at = DateTimeField()
+# class SecurityScans(BaseModel):
+#     build = ForeignKeyField(db_column='build_id', rel_model=CiBuilds, to_field='id')
+#     created_at = DateTimeField(index=True)
+#     id = BigIntegerField(primary_key=True)
+#     info = JSONField()
+#     latest = BooleanField()
+#     pipeline = BigIntegerField(db_column='pipeline_id', index=True, null=True)
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     scan_type = IntegerField(index=True)
+#     status = IntegerField()
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'security_scans'
-        indexes = (
-            (('build', 'scan_type'), True),
-        )
+#     class Meta:
+#         db_table = 'security_scans'
+#         indexes = (
+#             (('build', 'scan_type'), True),
+#         )
 
-class SecurityFindings(BaseModel):
-    confidence = IntegerField(index=True)
-    deduplicated = BooleanField()
-    id = BigIntegerField(primary_key=True)
-    overridden_uuid = TextField(null=True)
-    position = IntegerField(null=True)
-    project_fingerprint = TextField(index=True, null=True)
-    scan = ForeignKeyField(db_column='scan_id', rel_model=SecurityScans, to_field='id')
-    scanner = ForeignKeyField(db_column='scanner_id', rel_model=VulnerabilityScanners, to_field='id')
-    severity = IntegerField(index=True)
-    uuid = TextField(null=True)
+# class SecurityFindings(BaseModel):
+#     confidence = IntegerField(index=True)
+#     deduplicated = BooleanField()
+#     id = BigIntegerField(primary_key=True)
+#     overridden_uuid = TextField(null=True)
+#     position = IntegerField(null=True)
+#     project_fingerprint = TextField(index=True, null=True)
+#     scan = ForeignKeyField(db_column='scan_id', rel_model=SecurityScans, to_field='id')
+#     scanner = ForeignKeyField(db_column='scanner_id', rel_model=VulnerabilityScanners, to_field='id')
+#     severity = IntegerField(index=True)
+#     uuid = TextField(null=True)
 
-    class Meta:
-        db_table = 'security_findings'
-        indexes = (
-            (('deduplicated', 'scan'), False),
-            (('scan', 'position'), True),
-            (('uuid', 'scan'), True),
-        )
+#     class Meta:
+#         db_table = 'security_findings'
+#         indexes = (
+#             (('deduplicated', 'scan'), False),
+#             (('scan', 'position'), True),
+#             (('uuid', 'scan'), True),
+#         )
 
-class SecurityOrchestrationPolicyConfigurations(BaseModel):
-    configured_at = DateTimeField(null=True)
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id', unique=True)
-    security_policy_management_project = ForeignKeyField(db_column='security_policy_management_project_id', rel_model=Projects, related_name='projects_security_policy_management_project_set', to_field='id')
-    updated_at = DateTimeField()
+# class SecurityOrchestrationPolicyConfigurations(BaseModel):
+#     configured_at = DateTimeField(null=True)
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id', unique=True)
+#     security_policy_management_project = ForeignKeyField(db_column='security_policy_management_project_id', rel_model=Projects, related_name='projects_security_policy_management_project_set', to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'security_orchestration_policy_configurations'
-        indexes = (
-            (('project', 'security_policy_management_project'), False),
-        )
+#     class Meta:
+#         db_table = 'security_orchestration_policy_configurations'
+#         indexes = (
+#             (('project', 'security_policy_management_project'), False),
+#         )
 
-class SecurityOrchestrationPolicyRuleSchedules(BaseModel):
-    created_at = DateTimeField()
-    cron = TextField()
-    id = BigIntegerField(primary_key=True)
-    next_run_at = DateTimeField(null=True)
-    policy_index = IntegerField()
-    rule_index = IntegerField()
-    security_orchestration_policy_configuration = ForeignKeyField(db_column='security_orchestration_policy_configuration_id', rel_model=SecurityOrchestrationPolicyConfigurations, to_field='id')
-    updated_at = DateTimeField()
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class SecurityOrchestrationPolicyRuleSchedules(BaseModel):
+#     created_at = DateTimeField()
+#     cron = TextField()
+#     id = BigIntegerField(primary_key=True)
+#     next_run_at = DateTimeField(null=True)
+#     policy_index = IntegerField()
+#     rule_index = IntegerField()
+#     security_orchestration_policy_configuration = ForeignKeyField(db_column='security_orchestration_policy_configuration_id', rel_model=SecurityOrchestrationPolicyConfigurations, to_field='id')
+#     updated_at = DateTimeField()
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'security_orchestration_policy_rule_schedules'
+#     class Meta:
+#         db_table = 'security_orchestration_policy_rule_schedules'
 
-class SentNotifications(BaseModel):
-    commit = CharField(db_column='commit_id', null=True)
-    in_reply_to_discussion = CharField(db_column='in_reply_to_discussion_id', null=True)
-    line_code = CharField(null=True)
-    note_type = CharField(null=True)
-    noteable = IntegerField(db_column='noteable_id', index=True, null=True)
-    noteable_type = CharField(null=True)
-    position = TextField(null=True)
-    project = IntegerField(db_column='project_id', null=True)
-    recipient = IntegerField(db_column='recipient_id', null=True)
-    reply_key = CharField(unique=True)
+# class SentNotifications(BaseModel):
+#     commit = CharField(db_column='commit_id', null=True)
+#     in_reply_to_discussion = CharField(db_column='in_reply_to_discussion_id', null=True)
+#     line_code = CharField(null=True)
+#     note_type = CharField(null=True)
+#     noteable = IntegerField(db_column='noteable_id', index=True, null=True)
+#     noteable_type = CharField(null=True)
+#     position = TextField(null=True)
+#     project = IntegerField(db_column='project_id', null=True)
+#     recipient = IntegerField(db_column='recipient_id', null=True)
+#     reply_key = CharField(unique=True)
 
-    class Meta:
-        db_table = 'sent_notifications'
+#     class Meta:
+#         db_table = 'sent_notifications'
 
-class SentryIssues(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id', unique=True)
-    sentry_issue_identifier = BigIntegerField(index=True)
+# class SentryIssues(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id', unique=True)
+#     sentry_issue_identifier = BigIntegerField(index=True)
 
-    class Meta:
-        db_table = 'sentry_issues'
+#     class Meta:
+#         db_table = 'sentry_issues'
 
-class ServerlessDomainCluster(BaseModel):
-    certificate = TextField(null=True)
-    clusters_applications_knative = ForeignKeyField(db_column='clusters_applications_knative_id', rel_model=ClustersApplicationsKnative, to_field='id', unique=True)
-    created_at = DateTimeField()
-    creator = ForeignKeyField(db_column='creator_id', null=True, rel_model=Users, to_field='id')
-    encrypted_key = TextField(null=True)
-    encrypted_key_iv = CharField(null=True)
-    pages_domain = ForeignKeyField(db_column='pages_domain_id', rel_model=PagesDomains, to_field='id')
-    updated_at = DateTimeField()
-    uuid = CharField(primary_key=True)
+# class ServerlessDomainCluster(BaseModel):
+#     certificate = TextField(null=True)
+#     clusters_applications_knative = ForeignKeyField(db_column='clusters_applications_knative_id', rel_model=ClustersApplicationsKnative, to_field='id', unique=True)
+#     created_at = DateTimeField()
+#     creator = ForeignKeyField(db_column='creator_id', null=True, rel_model=Users, to_field='id')
+#     encrypted_key = TextField(null=True)
+#     encrypted_key_iv = CharField(null=True)
+#     pages_domain = ForeignKeyField(db_column='pages_domain_id', rel_model=PagesDomains, to_field='id')
+#     updated_at = DateTimeField()
+#     uuid = CharField(primary_key=True)
 
-    class Meta:
-        db_table = 'serverless_domain_cluster'
+#     class Meta:
+#         db_table = 'serverless_domain_cluster'
 
-class ServiceDeskSettings(BaseModel):
-    file_template_project = ForeignKeyField(db_column='file_template_project_id', null=True, rel_model=Projects, to_field='id')
-    issue_template_key = CharField(null=True)
-    outgoing_name = CharField(null=True)
-    project = ForeignKeyField(db_column='project_id', primary_key=True, rel_model=Projects, related_name='projects_project_set', to_field='id')
-    project_key = CharField(null=True)
+# class ServiceDeskSettings(BaseModel):
+#     file_template_project = ForeignKeyField(db_column='file_template_project_id', null=True, rel_model=Projects, to_field='id')
+#     issue_template_key = CharField(null=True)
+#     outgoing_name = CharField(null=True)
+#     project = ForeignKeyField(db_column='project_id', primary_key=True, rel_model=Projects, related_name='projects_project_set', to_field='id')
+#     project_key = CharField(null=True)
 
-    class Meta:
-        db_table = 'service_desk_settings'
+#     class Meta:
+#         db_table = 'service_desk_settings'
 
-class SlackIntegrations(BaseModel):
-    alias = CharField()
-    created_at = DateTimeField()
-    service = ForeignKeyField(db_column='service_id', rel_model=Integrations, to_field='id')
-    team = CharField(db_column='team_id')
-    team_name = CharField()
-    updated_at = DateTimeField()
-    user = CharField(db_column='user_id')
+# class SlackIntegrations(BaseModel):
+#     alias = CharField()
+#     created_at = DateTimeField()
+#     service = ForeignKeyField(db_column='service_id', rel_model=Integrations, to_field='id')
+#     team = CharField(db_column='team_id')
+#     team_name = CharField()
+#     updated_at = DateTimeField()
+#     user = CharField(db_column='user_id')
 
-    class Meta:
-        db_table = 'slack_integrations'
-        indexes = (
-            (('team', 'alias'), True),
-        )
+#     class Meta:
+#         db_table = 'slack_integrations'
+#         indexes = (
+#             (('team', 'alias'), True),
+#         )
 
-class SmartcardIdentities(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    issuer = CharField()
-    subject = CharField()
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
+# class SmartcardIdentities(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     issuer = CharField()
+#     subject = CharField()
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, to_field='id')
 
-    class Meta:
-        db_table = 'smartcard_identities'
-        indexes = (
-            (('subject', 'issuer'), True),
-        )
+#     class Meta:
+#         db_table = 'smartcard_identities'
+#         indexes = (
+#             (('subject', 'issuer'), True),
+#         )
 
 class Snippets(BaseModel):
     author = IntegerField(db_column='author_id', index=True)
@@ -7723,19 +7727,19 @@ class SnippetStatistics(BaseModel):
     class Meta:
         db_table = 'snippet_statistics'
 
-class SnippetUserMentions(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    mentioned_groups_ids = UnknownField(null=True)  # ARRAY
-    mentioned_projects_ids = UnknownField(null=True)  # ARRAY
-    mentioned_users_ids = UnknownField(null=True)  # ARRAY
-    note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
-    snippet = ForeignKeyField(db_column='snippet_id', rel_model=Snippets, to_field='id', unique=True)
+# class SnippetUserMentions(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     #mentioned_groups_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_projects_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_users_ids = UnknownField(null=True)  # ARRAY
+#     note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
+#     snippet = ForeignKeyField(db_column='snippet_id', rel_model=Snippets, to_field='id', unique=True)
 
-    class Meta:
-        db_table = 'snippet_user_mentions'
-        indexes = (
-            (('snippet', 'note'), True),
-        )
+#     class Meta:
+#         db_table = 'snippet_user_mentions'
+#         indexes = (
+#             (('snippet', 'note'), True),
+#         )
 
 class SoftwareLicenses(BaseModel):
     name = CharField(unique=True)
@@ -7773,15 +7777,15 @@ class SpamLogs(BaseModel):
     class Meta:
         db_table = 'spam_logs'
 
-class StatusCheckResponses(BaseModel):
-    external_approval_rule = BigIntegerField(db_column='external_approval_rule_id', index=True, null=True)
-    external_status_check = ForeignKeyField(db_column='external_status_check_id', rel_model=ExternalStatusChecks, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
-    sha = BlobField()
+# class StatusCheckResponses(BaseModel):
+#     external_approval_rule = BigIntegerField(db_column='external_approval_rule_id', index=True, null=True)
+#     external_status_check = ForeignKeyField(db_column='external_status_check_id', rel_model=ExternalStatusChecks, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     merge_request = ForeignKeyField(db_column='merge_request_id', rel_model=MergeRequests, to_field='id')
+#     sha = BlobField()
 
-    class Meta:
-        db_table = 'status_check_responses'
+#     class Meta:
+#         db_table = 'status_check_responses'
 
 class StatusPagePublishedIncidents(BaseModel):
     created_at = DateTimeField()
@@ -7822,34 +7826,34 @@ class Subscriptions(BaseModel):
             (('user', 'subscribable', 'subscribable_type', 'project'), True),
         )
 
-class Suggestions(BaseModel):
-    applied = BooleanField()
-    commit = CharField(db_column='commit_id', null=True)
-    from_content = TextField()
-    id = BigIntegerField(primary_key=True)
-    lines_above = IntegerField()
-    lines_below = IntegerField()
-    note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id')
-    outdated = BooleanField()
-    relative_order = IntegerField()
-    to_content = TextField()
+# class Suggestions(BaseModel):
+#     applied = BooleanField()
+#     commit = CharField(db_column='commit_id', null=True)
+#     from_content = TextField()
+#     id = BigIntegerField(primary_key=True)
+#     lines_above = IntegerField()
+#     lines_below = IntegerField()
+#     note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id')
+#     outdated = BooleanField()
+#     relative_order = IntegerField()
+#     to_content = TextField()
 
-    class Meta:
-        db_table = 'suggestions'
-        indexes = (
-            (('note', 'relative_order'), True),
-        )
+#     class Meta:
+#         db_table = 'suggestions'
+#         indexes = (
+#             (('note', 'relative_order'), True),
+#         )
 
-class SystemNoteMetadata(BaseModel):
-    action = CharField(null=True)
-    commit_count = IntegerField(null=True)
-    created_at = DateTimeField()
-    description_version = ForeignKeyField(db_column='description_version_id', null=True, rel_model=DescriptionVersions, to_field='id', unique=True)
-    note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id', unique=True)
-    updated_at = DateTimeField()
+# class SystemNoteMetadata(BaseModel):
+#     action = CharField(null=True)
+#     commit_count = IntegerField(null=True)
+#     created_at = DateTimeField()
+#     description_version = ForeignKeyField(db_column='description_version_id', null=True, rel_model=DescriptionVersions, to_field='id', unique=True)
+#     note = ForeignKeyField(db_column='note_id', rel_model=Notes, to_field='id', unique=True)
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'system_note_metadata'
+#     class Meta:
+#         db_table = 'system_note_metadata'
 
 class Taggings(BaseModel):
     context = CharField(null=True)
@@ -7932,47 +7936,47 @@ class TerraformStateVersions(BaseModel):
             (('version', 'terraform_state'), True),
         )
 
-class Timelogs(BaseModel):
-    created_at = DateTimeField()
-    issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
-    note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id')
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    spent_at = DateTimeField(index=True, null=True)
-    summary = TextField(null=True)
-    time_spent = IntegerField()
-    updated_at = DateTimeField()
-    user = IntegerField(db_column='user_id', index=True, null=True)
+# class Timelogs(BaseModel):
+#     created_at = DateTimeField()
+#     issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
+#     note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     spent_at = DateTimeField(index=True, null=True)
+#     summary = TextField(null=True)
+#     time_spent = IntegerField()
+#     updated_at = DateTimeField()
+#     user = IntegerField(db_column='user_id', index=True, null=True)
 
-    class Meta:
-        db_table = 'timelogs'
-        indexes = (
-            (('spent_at', 'project'), False),
-        )
+#     class Meta:
+#         db_table = 'timelogs'
+#         indexes = (
+#             (('spent_at', 'project'), False),
+#         )
 
-class Todos(BaseModel):
-    action = IntegerField()
-    author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
-    commit = CharField(db_column='commit_id', index=True, null=True)
-    created_at = DateTimeField(null=True)
-    group = ForeignKeyField(db_column='group_id', null=True, rel_model=Namespaces, to_field='id')
-    note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id')
-    project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
-    resolved_by_action = IntegerField(null=True)
-    state = CharField()
-    target = IntegerField(db_column='target_id', null=True)
-    target_type = CharField()
-    updated_at = DateTimeField(null=True)
-    user = ForeignKeyField(db_column='user_id', rel_model=Users, related_name='users_user_set', to_field='id')
+# class Todos(BaseModel):
+#     action = IntegerField()
+#     author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
+#     commit = CharField(db_column='commit_id', index=True, null=True)
+#     created_at = DateTimeField(null=True)
+#     group = ForeignKeyField(db_column='group_id', null=True, rel_model=Namespaces, to_field='id')
+#     note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id')
+#     project = ForeignKeyField(db_column='project_id', null=True, rel_model=Projects, to_field='id')
+#     resolved_by_action = IntegerField(null=True)
+#     state = CharField()
+#     target = IntegerField(db_column='target_id', null=True)
+#     target_type = CharField()
+#     updated_at = DateTimeField(null=True)
+#     user = ForeignKeyField(db_column='user_id', rel_model=Users, related_name='users_user_set', to_field='id')
 
-    class Meta:
-        db_table = 'todos'
-        indexes = (
-            (('author', 'created_at'), False),
-            (('id', 'user'), False),
-            (('id', 'user'), False),
-            (('target', 'target_type'), False),
-        )
+#     class Meta:
+#         db_table = 'todos'
+#         indexes = (
+#             (('author', 'created_at'), False),
+#             (('id', 'user'), False),
+#             (('id', 'user'), False),
+#             (('target', 'target_type'), False),
+#         )
 
 class TokenWithIvs(BaseModel):
     hashed_plaintext_token = BlobField(unique=True)
@@ -8288,48 +8292,48 @@ class VerificationCodes(BaseModel):
         db_table = 'verification_codes'
         primary_key = CompositeKey('code', 'created_at', 'phone', 'visitor_id_code')
 
-class Vulnerabilities(BaseModel):
-    author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
-    cached_markdown_version = IntegerField(null=True)
-    confidence = IntegerField()
-    confidence_overridden = BooleanField(null=True)
-    confirmed_at = DateTimeField(null=True)
-    confirmed_by = ForeignKeyField(db_column='confirmed_by_id', null=True, rel_model=Users, related_name='users_confirmed_by_set', to_field='id')
-    created_at = DateTimeField()
-    description = TextField(null=True)
-    description_html = TextField(null=True)
-    detected_at = DateTimeField(null=True)
-    dismissed_at = DateTimeField(null=True)
-    dismissed_by = ForeignKeyField(db_column='dismissed_by_id', null=True, rel_model=Users, related_name='users_dismissed_by_set', to_field='id')
-    due_date = DateField(null=True)
-    due_date_sourcing_milestone = ForeignKeyField(db_column='due_date_sourcing_milestone_id', null=True, rel_model=Milestones, to_field='id')
-    epic = ForeignKeyField(db_column='epic_id', null=True, rel_model=Epics, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    last_edited_at = DateTimeField(null=True)
-    last_edited_by = ForeignKeyField(db_column='last_edited_by_id', null=True, rel_model=Users, related_name='users_last_edited_by_set', to_field='id')
-    milestone = ForeignKeyField(db_column='milestone_id', null=True, rel_model=Milestones, related_name='milestones_milestone_set', to_field='id')
-    present_on_default_branch = BooleanField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    report_type = IntegerField()
-    resolved_at = DateTimeField(null=True)
-    resolved_by = ForeignKeyField(db_column='resolved_by_id', null=True, rel_model=Users, related_name='users_resolved_by_set', to_field='id')
-    resolved_on_default_branch = BooleanField()
-    severity = IntegerField()
-    severity_overridden = BooleanField(null=True)
-    start_date = DateField(null=True)
-    start_date_sourcing_milestone = ForeignKeyField(db_column='start_date_sourcing_milestone_id', null=True, rel_model=Milestones, related_name='milestones_start_date_sourcing_milestone_set', to_field='id')
-    state = IntegerField()
-    title = CharField()
-    title_html = TextField(null=True)
-    updated_at = DateTimeField()
-    updated_by = ForeignKeyField(db_column='updated_by_id', null=True, rel_model=Users, related_name='users_updated_by_set', to_field='id')
+# class Vulnerabilities(BaseModel):
+#     author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
+#     cached_markdown_version = IntegerField(null=True)
+#     confidence = IntegerField()
+#     confidence_overridden = BooleanField(null=True)
+#     confirmed_at = DateTimeField(null=True)
+#     confirmed_by = ForeignKeyField(db_column='confirmed_by_id', null=True, rel_model=Users, related_name='users_confirmed_by_set', to_field='id')
+#     created_at = DateTimeField()
+#     description = TextField(null=True)
+#     description_html = TextField(null=True)
+#     detected_at = DateTimeField(null=True)
+#     dismissed_at = DateTimeField(null=True)
+#     dismissed_by = ForeignKeyField(db_column='dismissed_by_id', null=True, rel_model=Users, related_name='users_dismissed_by_set', to_field='id')
+#     due_date = DateField(null=True)
+#     due_date_sourcing_milestone = ForeignKeyField(db_column='due_date_sourcing_milestone_id', null=True, rel_model=Milestones, to_field='id')
+#     epic = ForeignKeyField(db_column='epic_id', null=True, rel_model=Epics, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     last_edited_at = DateTimeField(null=True)
+#     last_edited_by = ForeignKeyField(db_column='last_edited_by_id', null=True, rel_model=Users, related_name='users_last_edited_by_set', to_field='id')
+#     milestone = ForeignKeyField(db_column='milestone_id', null=True, rel_model=Milestones, related_name='milestones_milestone_set', to_field='id')
+#     present_on_default_branch = BooleanField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     report_type = IntegerField()
+#     resolved_at = DateTimeField(null=True)
+#     resolved_by = ForeignKeyField(db_column='resolved_by_id', null=True, rel_model=Users, related_name='users_resolved_by_set', to_field='id')
+#     resolved_on_default_branch = BooleanField()
+#     severity = IntegerField()
+#     severity_overridden = BooleanField(null=True)
+#     start_date = DateField(null=True)
+#     start_date_sourcing_milestone = ForeignKeyField(db_column='start_date_sourcing_milestone_id', null=True, rel_model=Milestones, related_name='milestones_start_date_sourcing_milestone_set', to_field='id')
+#     state = IntegerField()
+#     title = CharField()
+#     title_html = TextField(null=True)
+#     updated_at = DateTimeField()
+#     updated_by = ForeignKeyField(db_column='updated_by_id', null=True, rel_model=Users, related_name='users_updated_by_set', to_field='id')
 
-    class Meta:
-        db_table = 'vulnerabilities'
-        indexes = (
-            (('project', 'created_at'), False),
-            (('project', 'state', 'severity'), False),
-        )
+#     class Meta:
+#         db_table = 'vulnerabilities'
+#         indexes = (
+#             (('project', 'created_at'), False),
+#             (('project', 'state', 'severity'), False),
+#         )
 
 class VulnerabilityExports(BaseModel):
     author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
@@ -8348,344 +8352,344 @@ class VulnerabilityExports(BaseModel):
     class Meta:
         db_table = 'vulnerability_exports'
 
-class VulnerabilityExternalIssueLinks(BaseModel):
-    author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
-    created_at = DateTimeField()
-    external_issue_key = TextField()
-    external_project_key = TextField()
-    external_type = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    link_type = IntegerField()
-    updated_at = DateTimeField()
-    vulnerability = ForeignKeyField(db_column='vulnerability_id', rel_model=Vulnerabilities, to_field='id')
+# class VulnerabilityExternalIssueLinks(BaseModel):
+#     author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
+#     created_at = DateTimeField()
+#     external_issue_key = TextField()
+#     external_project_key = TextField()
+#     external_type = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     link_type = IntegerField()
+#     updated_at = DateTimeField()
+#     vulnerability = ForeignKeyField(db_column='vulnerability_id', rel_model=Vulnerabilities, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_external_issue_links'
-        indexes = (
-            (('link_type', 'vulnerability'), True),
-            (('vulnerability', 'external_type', 'external_project_key', 'external_issue_key'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_external_issue_links'
+#         indexes = (
+#             (('link_type', 'vulnerability'), True),
+#             (('vulnerability', 'external_type', 'external_project_key', 'external_issue_key'), True),
+#         )
 
-class VulnerabilityFeedback(BaseModel):
-    author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
-    category = IntegerField()
-    comment = TextField(null=True)
-    comment_author = ForeignKeyField(db_column='comment_author_id', null=True, rel_model=Users, related_name='users_comment_author_set', to_field='id')
-    comment_timestamp = DateTimeField(null=True)
-    created_at = DateTimeField()
-    dismissal_reason = IntegerField(null=True)
-    feedback_type = IntegerField()
-    finding_uuid = TextField(null=True)
-    issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
-    merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
-    pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
-    project_fingerprint = CharField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    updated_at = DateTimeField()
+# class VulnerabilityFeedback(BaseModel):
+#     author = ForeignKeyField(db_column='author_id', rel_model=Users, to_field='id')
+#     category = IntegerField()
+#     comment = TextField(null=True)
+#     comment_author = ForeignKeyField(db_column='comment_author_id', null=True, rel_model=Users, related_name='users_comment_author_set', to_field='id')
+#     comment_timestamp = DateTimeField(null=True)
+#     created_at = DateTimeField()
+#     dismissal_reason = IntegerField(null=True)
+#     feedback_type = IntegerField()
+#     finding_uuid = TextField(null=True)
+#     issue = ForeignKeyField(db_column='issue_id', null=True, rel_model=Issues, to_field='id')
+#     merge_request = ForeignKeyField(db_column='merge_request_id', null=True, rel_model=MergeRequests, to_field='id')
+#     pipeline = ForeignKeyField(db_column='pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
+#     project_fingerprint = CharField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'vulnerability_feedback'
-        indexes = (
-            (('project_fingerprint', 'feedback_type', 'category', 'project'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_feedback'
+#         indexes = (
+#             (('project_fingerprint', 'feedback_type', 'category', 'project'), True),
+#         )
 
-class VulnerabilityIdentifiers(BaseModel):
-    created_at = DateTimeField()
-    external = CharField(db_column='external_id')
-    external_type = CharField()
-    fingerprint = BlobField()
-    id = BigIntegerField(primary_key=True)
-    name = CharField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    updated_at = DateTimeField()
-    url = TextField(null=True)
+# class VulnerabilityIdentifiers(BaseModel):
+#     created_at = DateTimeField()
+#     external = CharField(db_column='external_id')
+#     external_type = CharField()
+#     fingerprint = BlobField()
+#     id = BigIntegerField(primary_key=True)
+#     name = CharField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     updated_at = DateTimeField()
+#     url = TextField(null=True)
 
-    class Meta:
-        db_table = 'vulnerability_identifiers'
-        indexes = (
-            (('project', 'fingerprint'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_identifiers'
+#         indexes = (
+#             (('project', 'fingerprint'), True),
+#         )
 
-class VulnerabilityOccurrences(BaseModel):
-    confidence = IntegerField()
-    created_at = DateTimeField()
-    cve = TextField(null=True)
-    description = TextField(null=True)
-    details = JSONField()
-    detection_method = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    location = JSONField(null=True)
-    location_fingerprint = BlobField()
-    message = TextField(null=True)
-    metadata_version = CharField()
-    name = CharField()
-    primary_identifier = ForeignKeyField(db_column='primary_identifier_id', rel_model=VulnerabilityIdentifiers, to_field='id')
-    project_fingerprint = BlobField(index=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    raw_metadata = TextField()
-    report_type = IntegerField()
-    scanner = ForeignKeyField(db_column='scanner_id', rel_model=VulnerabilityScanners, to_field='id')
-    severity = IntegerField()
-    solution = TextField(null=True)
-    updated_at = DateTimeField()
-    uuid = CharField(unique=True)
-    vulnerability = ForeignKeyField(db_column='vulnerability_id', null=True, rel_model=Vulnerabilities, to_field='id')
+# class VulnerabilityOccurrences(BaseModel):
+#     confidence = IntegerField()
+#     created_at = DateTimeField()
+#     cve = TextField(null=True)
+#     description = TextField(null=True)
+#     details = JSONField()
+#     detection_method = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     location = JSONField(null=True)
+#     location_fingerprint = BlobField()
+#     message = TextField(null=True)
+#     metadata_version = CharField()
+#     name = CharField()
+#     primary_identifier = ForeignKeyField(db_column='primary_identifier_id', rel_model=VulnerabilityIdentifiers, to_field='id')
+#     project_fingerprint = BlobField(index=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     raw_metadata = TextField()
+#     report_type = IntegerField()
+#     scanner = ForeignKeyField(db_column='scanner_id', rel_model=VulnerabilityScanners, to_field='id')
+#     severity = IntegerField()
+#     solution = TextField(null=True)
+#     updated_at = DateTimeField()
+#     uuid = CharField(unique=True)
+#     vulnerability = ForeignKeyField(db_column='vulnerability_id', null=True, rel_model=Vulnerabilities, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_occurrences'
-        indexes = (
-            (('primary_identifier', 'location_fingerprint', 'id', 'report_type', 'project'), False),
-            (('project', 'location_fingerprint', 'primary_identifier', 'scanner'), True),
-            (('report_type', 'project'), False),
-            (('report_type', 'project', 'project_fingerprint'), False),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_occurrences'
+#         indexes = (
+#             (('primary_identifier', 'location_fingerprint', 'id', 'report_type', 'project'), False),
+#             (('project', 'location_fingerprint', 'primary_identifier', 'scanner'), True),
+#             (('report_type', 'project'), False),
+#             (('report_type', 'project', 'project_fingerprint'), False),
+#         )
 
-class VulnerabilityFindingEvidences(BaseModel):
-    created_at = DateTimeField()
-    data = JSONField()
-    id = BigIntegerField(primary_key=True)
-    summary = TextField(null=True)
-    updated_at = DateTimeField()
-    vulnerability_occurrence = ForeignKeyField(db_column='vulnerability_occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
+# class VulnerabilityFindingEvidences(BaseModel):
+#     created_at = DateTimeField()
+#     data = JSONField()
+#     id = BigIntegerField(primary_key=True)
+#     summary = TextField(null=True)
+#     updated_at = DateTimeField()
+#     vulnerability_occurrence = ForeignKeyField(db_column='vulnerability_occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_finding_evidences'
+#     class Meta:
+#         db_table = 'vulnerability_finding_evidences'
 
-class VulnerabilityFindingEvidenceAssets(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    name = TextField(null=True)
-    type = TextField(null=True)
-    updated_at = DateTimeField()
-    url = TextField(null=True)
-    vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', rel_model=VulnerabilityFindingEvidences, to_field='id')
+# class VulnerabilityFindingEvidenceAssets(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     name = TextField(null=True)
+#     type = TextField(null=True)
+#     updated_at = DateTimeField()
+#     url = TextField(null=True)
+#     vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', rel_model=VulnerabilityFindingEvidences, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_finding_evidence_assets'
+#     class Meta:
+#         db_table = 'vulnerability_finding_evidence_assets'
 
-class VulnerabilityFindingEvidenceSupportingMessages(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    name = TextField(null=True)
-    updated_at = DateTimeField()
-    vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', rel_model=VulnerabilityFindingEvidences, to_field='id')
+# class VulnerabilityFindingEvidenceSupportingMessages(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     name = TextField(null=True)
+#     updated_at = DateTimeField()
+#     vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', rel_model=VulnerabilityFindingEvidences, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_finding_evidence_supporting_messages'
+#     class Meta:
+#         db_table = 'vulnerability_finding_evidence_supporting_messages'
 
-class VulnerabilityFindingEvidenceResponses(BaseModel):
-    body = TextField(null=True)
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    reason_phrase = TextField(null=True)
-    status_code = IntegerField(null=True)
-    updated_at = DateTimeField()
-    vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', null=True, rel_model=VulnerabilityFindingEvidences, to_field='id')
-    vulnerability_finding_evidence_supporting_message = ForeignKeyField(db_column='vulnerability_finding_evidence_supporting_message_id', null=True, rel_model=VulnerabilityFindingEvidenceSupportingMessages, to_field='id')
+# class VulnerabilityFindingEvidenceResponses(BaseModel):
+#     body = TextField(null=True)
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     reason_phrase = TextField(null=True)
+#     status_code = IntegerField(null=True)
+#     updated_at = DateTimeField()
+#     vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', null=True, rel_model=VulnerabilityFindingEvidences, to_field='id')
+#     vulnerability_finding_evidence_supporting_message = ForeignKeyField(db_column='vulnerability_finding_evidence_supporting_message_id', null=True, rel_model=VulnerabilityFindingEvidenceSupportingMessages, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_finding_evidence_responses'
+#     class Meta:
+#         db_table = 'vulnerability_finding_evidence_responses'
 
-class VulnerabilityFindingEvidenceRequests(BaseModel):
-    body = TextField(null=True)
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    method = TextField(null=True)
-    updated_at = DateTimeField()
-    url = TextField(null=True)
-    vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', null=True, rel_model=VulnerabilityFindingEvidences, to_field='id')
-    vulnerability_finding_evidence_supporting_message = ForeignKeyField(db_column='vulnerability_finding_evidence_supporting_message_id', null=True, rel_model=VulnerabilityFindingEvidenceSupportingMessages, to_field='id')
+# class VulnerabilityFindingEvidenceRequests(BaseModel):
+#     body = TextField(null=True)
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     method = TextField(null=True)
+#     updated_at = DateTimeField()
+#     url = TextField(null=True)
+#     vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', null=True, rel_model=VulnerabilityFindingEvidences, to_field='id')
+#     vulnerability_finding_evidence_supporting_message = ForeignKeyField(db_column='vulnerability_finding_evidence_supporting_message_id', null=True, rel_model=VulnerabilityFindingEvidenceSupportingMessages, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_finding_evidence_requests'
+#     class Meta:
+#         db_table = 'vulnerability_finding_evidence_requests'
 
-class VulnerabilityFindingEvidenceHeaders(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    name = TextField()
-    updated_at = DateTimeField()
-    value = TextField()
-    vulnerability_finding_evidence_request = ForeignKeyField(db_column='vulnerability_finding_evidence_request_id', null=True, rel_model=VulnerabilityFindingEvidenceRequests, to_field='id')
-    vulnerability_finding_evidence_response = ForeignKeyField(db_column='vulnerability_finding_evidence_response_id', null=True, rel_model=VulnerabilityFindingEvidenceResponses, to_field='id')
+# class VulnerabilityFindingEvidenceHeaders(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     name = TextField()
+#     updated_at = DateTimeField()
+#     value = TextField()
+#     vulnerability_finding_evidence_request = ForeignKeyField(db_column='vulnerability_finding_evidence_request_id', null=True, rel_model=VulnerabilityFindingEvidenceRequests, to_field='id')
+#     vulnerability_finding_evidence_response = ForeignKeyField(db_column='vulnerability_finding_evidence_response_id', null=True, rel_model=VulnerabilityFindingEvidenceResponses, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_finding_evidence_headers'
+#     class Meta:
+#         db_table = 'vulnerability_finding_evidence_headers'
 
-class VulnerabilityFindingEvidenceSources(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    name = TextField(null=True)
-    updated_at = DateTimeField()
-    url = TextField(null=True)
-    vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', rel_model=VulnerabilityFindingEvidences, to_field='id')
+# class VulnerabilityFindingEvidenceSources(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     name = TextField(null=True)
+#     updated_at = DateTimeField()
+#     url = TextField(null=True)
+#     vulnerability_finding_evidence = ForeignKeyField(db_column='vulnerability_finding_evidence_id', rel_model=VulnerabilityFindingEvidences, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_finding_evidence_sources'
+#     class Meta:
+#         db_table = 'vulnerability_finding_evidence_sources'
 
-class VulnerabilityFindingLinks(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    name = TextField(null=True)
-    updated_at = DateTimeField()
-    url = TextField()
-    vulnerability_occurrence = ForeignKeyField(db_column='vulnerability_occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
+# class VulnerabilityFindingLinks(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     name = TextField(null=True)
+#     updated_at = DateTimeField()
+#     url = TextField()
+#     vulnerability_occurrence = ForeignKeyField(db_column='vulnerability_occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_finding_links'
+#     class Meta:
+#         db_table = 'vulnerability_finding_links'
 
-class VulnerabilityFindingSignatures(BaseModel):
-    algorithm_type = IntegerField()
-    created_at = DateTimeField()
-    finding = ForeignKeyField(db_column='finding_id', rel_model=VulnerabilityOccurrences, to_field='id')
-    id = BigIntegerField(primary_key=True)
-    signature_sha = BlobField()
-    updated_at = DateTimeField()
+# class VulnerabilityFindingSignatures(BaseModel):
+#     algorithm_type = IntegerField()
+#     created_at = DateTimeField()
+#     finding = ForeignKeyField(db_column='finding_id', rel_model=VulnerabilityOccurrences, to_field='id')
+#     id = BigIntegerField(primary_key=True)
+#     signature_sha = BlobField()
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'vulnerability_finding_signatures'
-        indexes = (
-            (('finding', 'algorithm_type', 'signature_sha'), True),
-            (('signature_sha', 'finding'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_finding_signatures'
+#         indexes = (
+#             (('finding', 'algorithm_type', 'signature_sha'), True),
+#             (('signature_sha', 'finding'), True),
+#         )
 
-class VulnerabilityRemediations(BaseModel):
-    checksum = BlobField()
-    created_at = DateTimeField()
-    file = TextField()
-    file_store = IntegerField(null=True)
-    id = BigIntegerField(primary_key=True)
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    summary = TextField()
-    updated_at = DateTimeField()
+# class VulnerabilityRemediations(BaseModel):
+#     checksum = BlobField()
+#     created_at = DateTimeField()
+#     file = TextField()
+#     file_store = IntegerField(null=True)
+#     id = BigIntegerField(primary_key=True)
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     summary = TextField()
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'vulnerability_remediations'
-        indexes = (
-            (('checksum', 'project'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_remediations'
+#         indexes = (
+#             (('checksum', 'project'), True),
+#         )
 
-class VulnerabilityFindingsRemediations(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    updated_at = DateTimeField()
-    vulnerability_occurrence = ForeignKeyField(db_column='vulnerability_occurrence_id', null=True, rel_model=VulnerabilityOccurrences, to_field='id')
-    vulnerability_remediation = ForeignKeyField(db_column='vulnerability_remediation_id', null=True, rel_model=VulnerabilityRemediations, to_field='id')
+# class VulnerabilityFindingsRemediations(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     updated_at = DateTimeField()
+#     vulnerability_occurrence = ForeignKeyField(db_column='vulnerability_occurrence_id', null=True, rel_model=VulnerabilityOccurrences, to_field='id')
+#     vulnerability_remediation = ForeignKeyField(db_column='vulnerability_remediation_id', null=True, rel_model=VulnerabilityRemediations, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_findings_remediations'
-        indexes = (
-            (('vulnerability_occurrence', 'vulnerability_remediation'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_findings_remediations'
+#         indexes = (
+#             (('vulnerability_occurrence', 'vulnerability_remediation'), True),
+#         )
 
-class VulnerabilityFlags(BaseModel):
-    created_at = DateTimeField()
-    description = TextField()
-    flag_type = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    origin = TextField()
-    updated_at = DateTimeField()
-    vulnerability_occurrence = ForeignKeyField(db_column='vulnerability_occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
+# class VulnerabilityFlags(BaseModel):
+#     created_at = DateTimeField()
+#     description = TextField()
+#     flag_type = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     origin = TextField()
+#     updated_at = DateTimeField()
+#     vulnerability_occurrence = ForeignKeyField(db_column='vulnerability_occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_flags'
-        indexes = (
-            (('vulnerability_occurrence', 'flag_type', 'origin'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_flags'
+#         indexes = (
+#             (('vulnerability_occurrence', 'flag_type', 'origin'), True),
+#         )
 
-class VulnerabilityHistoricalStatistics(BaseModel):
-    created_at = DateTimeField()
-    critical = IntegerField()
-    date = DateField()
-    high = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    info = IntegerField()
-    letter_grade = IntegerField()
-    low = IntegerField()
-    medium = IntegerField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
-    total = IntegerField()
-    unknown = IntegerField()
-    updated_at = DateTimeField()
+# class VulnerabilityHistoricalStatistics(BaseModel):
+#     created_at = DateTimeField()
+#     critical = IntegerField()
+#     date = DateField()
+#     high = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     info = IntegerField()
+#     letter_grade = IntegerField()
+#     low = IntegerField()
+#     medium = IntegerField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id')
+#     total = IntegerField()
+#     unknown = IntegerField()
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'vulnerability_historical_statistics'
-        indexes = (
-            (('id', 'date'), False),
-            (('project', 'date'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_historical_statistics'
+#         indexes = (
+#             (('id', 'date'), False),
+#             (('project', 'date'), True),
+#         )
 
-class VulnerabilityIssueLinks(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id')
-    link_type = IntegerField()
-    updated_at = DateTimeField()
-    vulnerability = ForeignKeyField(db_column='vulnerability_id', rel_model=Vulnerabilities, to_field='id')
+# class VulnerabilityIssueLinks(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     issue = ForeignKeyField(db_column='issue_id', rel_model=Issues, to_field='id')
+#     link_type = IntegerField()
+#     updated_at = DateTimeField()
+#     vulnerability = ForeignKeyField(db_column='vulnerability_id', rel_model=Vulnerabilities, to_field='id')
 
-    class Meta:
-        db_table = 'vulnerability_issue_links'
-        indexes = (
-            (('vulnerability', 'issue'), True),
-            (('vulnerability', 'link_type'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_issue_links'
+#         indexes = (
+#             (('vulnerability', 'issue'), True),
+#             (('vulnerability', 'link_type'), True),
+#         )
 
-class VulnerabilityOccurrenceIdentifiers(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    identifier = ForeignKeyField(db_column='identifier_id', rel_model=VulnerabilityIdentifiers, to_field='id')
-    occurrence = ForeignKeyField(db_column='occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
-    updated_at = DateTimeField()
+# class VulnerabilityOccurrenceIdentifiers(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     identifier = ForeignKeyField(db_column='identifier_id', rel_model=VulnerabilityIdentifiers, to_field='id')
+#     occurrence = ForeignKeyField(db_column='occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'vulnerability_occurrence_identifiers'
-        indexes = (
-            (('occurrence', 'identifier'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_occurrence_identifiers'
+#         indexes = (
+#             (('occurrence', 'identifier'), True),
+#         )
 
-class VulnerabilityOccurrencePipelines(BaseModel):
-    created_at = DateTimeField()
-    id = BigIntegerField(primary_key=True)
-    occurrence = ForeignKeyField(db_column='occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
-    pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
-    updated_at = DateTimeField()
+# class VulnerabilityOccurrencePipelines(BaseModel):
+#     created_at = DateTimeField()
+#     id = BigIntegerField(primary_key=True)
+#     occurrence = ForeignKeyField(db_column='occurrence_id', rel_model=VulnerabilityOccurrences, to_field='id')
+#     pipeline = ForeignKeyField(db_column='pipeline_id', rel_model=CiPipelines, to_field='id')
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'vulnerability_occurrence_pipelines'
-        indexes = (
-            (('occurrence', 'pipeline'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_occurrence_pipelines'
+#         indexes = (
+#             (('occurrence', 'pipeline'), True),
+#         )
 
-class VulnerabilityStatistics(BaseModel):
-    created_at = DateTimeField()
-    critical = IntegerField()
-    high = IntegerField()
-    id = BigIntegerField(primary_key=True)
-    info = IntegerField()
-    latest_pipeline = ForeignKeyField(db_column='latest_pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
-    letter_grade = IntegerField(index=True)
-    low = IntegerField()
-    medium = IntegerField()
-    project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id', unique=True)
-    total = IntegerField()
-    unknown = IntegerField()
-    updated_at = DateTimeField()
+# class VulnerabilityStatistics(BaseModel):
+#     created_at = DateTimeField()
+#     critical = IntegerField()
+#     high = IntegerField()
+#     id = BigIntegerField(primary_key=True)
+#     info = IntegerField()
+#     latest_pipeline = ForeignKeyField(db_column='latest_pipeline_id', null=True, rel_model=CiPipelines, to_field='id')
+#     letter_grade = IntegerField(index=True)
+#     low = IntegerField()
+#     medium = IntegerField()
+#     project = ForeignKeyField(db_column='project_id', rel_model=Projects, to_field='id', unique=True)
+#     total = IntegerField()
+#     unknown = IntegerField()
+#     updated_at = DateTimeField()
 
-    class Meta:
-        db_table = 'vulnerability_statistics'
+#     class Meta:
+#         db_table = 'vulnerability_statistics'
 
-class VulnerabilityUserMentions(BaseModel):
-    id = BigIntegerField(primary_key=True)
-    mentioned_groups_ids = UnknownField(null=True)  # ARRAY
-    mentioned_projects_ids = UnknownField(null=True)  # ARRAY
-    mentioned_users_ids = UnknownField(null=True)  # ARRAY
-    note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
-    vulnerability = ForeignKeyField(db_column='vulnerability_id', rel_model=Vulnerabilities, to_field='id', unique=True)
+# class VulnerabilityUserMentions(BaseModel):
+#     id = BigIntegerField(primary_key=True)
+#     #mentioned_groups_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_projects_ids = UnknownField(null=True)  # ARRAY
+#     #mentioned_users_ids = UnknownField(null=True)  # ARRAY
+#     note = ForeignKeyField(db_column='note_id', null=True, rel_model=Notes, to_field='id', unique=True)
+#     vulnerability = ForeignKeyField(db_column='vulnerability_id', rel_model=Vulnerabilities, to_field='id', unique=True)
 
-    class Meta:
-        db_table = 'vulnerability_user_mentions'
-        indexes = (
-            (('vulnerability', 'note'), True),
-        )
+#     class Meta:
+#         db_table = 'vulnerability_user_mentions'
+#         indexes = (
+#             (('vulnerability', 'note'), True),
+#         )
 
 class WebHooks(BaseModel):
     backoff_count = IntegerField()
@@ -8850,3 +8854,7 @@ class ZoomMeetings(BaseModel):
             (('issue', 'issue_status'), True),
         )
 
+# Now that ForeignKeyFields are defined, we can initialize the reference.
+DeferredNamespaces.set_model(Namespaces)
+DeferredProjects.set_model(Projects)
+#DeferredMergeRequests.set_model(MergeRequests)
