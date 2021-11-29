@@ -194,14 +194,14 @@ def convert(text, base_path, multilines=True, note_map={}, attachments_path=None
         d = m.groupdict()
         d.update({
             'base_path': os.path.relpath('/tree/master/', base_path),
-            'upload_path' : '/uploads/%s/%s' % (gitlab_ref, path),
+            'upload_path' : '/uploads/%s' % (path),
         })
 
         if module == 'source':
             return '![](%(base_path)s/%(path)s)' % d
         elif module == 'wiki':
             id, file = path.split(':', 2)
-            d['upload_path'] = '/uploads/%s/%s' % (gitlab_ref, file)
+            d['upload_path'] = '/uploads/%s' % (file)
             d['file'] = file
             return '![%(file)s](%(upload_path)s)' % d
         else:

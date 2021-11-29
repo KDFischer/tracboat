@@ -63,7 +63,7 @@ def _format_changeset_comment(rex):
     return 'In changeset ' + rex.group(1) + ':\n> ' + rex.group(3).replace('\n', '\n> ')
 
 def _wikiconvert(text, basepath, multiline=True, note_map={}, attachments_path=None, svn2git_revisions={}, gitlab_ref="_todo_"):
-    return trac2down.convert(_wikifix(text), basepath, multiline, gitlab_ref, note_map=note_map, attachments_path=attachments_path, svn2git_revisions=svn2git_revisions)
+    return trac2down.convert(_wikifix(text), basepath, multiline, note_map=note_map, attachments_path=attachments_path, svn2git_revisions=svn2git_revisions)
 
 def _wikifix(text):
     text = CHANGESET_REX.sub(_format_changeset_comment, text)
@@ -322,9 +322,9 @@ def ticket_kwargs(ticket, ticket_iid, attachments_path, svn2git_revisions={}):
     version_labels = ticket_version(ticket)
     component_labels = ticket_components(ticket)
     type_labels = ticket_type(ticket)
-    state, state_labels = ticket_state(ticket)
-    #global ticket_iid
-    #ticket_iid = ticket_iid+1
+    state, s = ticket_state(ticket)
+    state_labels = set()
+    state_labels.add(s)
     note_labels = ticket_note_labels(ticket)
 
     labels = priority_labels | resolution_labels | version_labels | \
@@ -340,10 +340,10 @@ def ticket_kwargs(ticket, ticket_iid, attachments_path, svn2git_revisions={}):
         info = ticket['attachments'][file_id]
         name = info['attributes']['filename']
         hash = info['data']
-        with open(os.path.join(attachments_path, hash), 'r') as f:
-            data = f.read()
-            info['data'] = data
-            f.close()
+        # with open(os.path.join(attachments_path, hash), 'r') as f:
+        #     data = f.read()
+        #     info['data'] = data
+        #     f.close()
         uploads[hash] = info
         desc += '* [%s](/uploads/issue_%s/%s)\n' % (name, ticket_iid, name)
 
@@ -437,7 +437,8 @@ def merge_changelog(ticket_id, changelog, usermanager):
 def ticket_state(ticket):
     status_to_state = LabelStatus.MAPPING
     state = ticket['attributes']['status']
-    return status_to_state[state]
+    state_label = status_to_state[state]
+    return state, state_label
 
 def update_timetracking(issue_args, ticket):
     def convert(hours):
@@ -451,45 +452,17 @@ def update_timetracking(issue_args, ticket):
     if 'estimatedhours' in ticket['attributes']:
         issue_args['time_estimate'] = convert(ticket['attributes']['estimatedhours'])
 
-def migrate_tickets(trac_tickets, gitlab, svn2git_revisions={}, labelmanager=None, usermanager=None):
-    LOG.info('MIGRATING %d tickets to issues', len(trac_tickets))
-    if len(trac_tickets) == 0:
-        return
-    for ticket_id, ticket in six.iteritems(trac_tickets):
-        LOG.info('migrate #%d: %r', ticket_id, ticket)
-        # trac note_id -> gitlab note_id
-        note_map = {}
-        trac_note_id = 1
-
-        issue_args = ticket_kwargs(ticket_id, ticket, svn2git_revisions=svn2git_revisions)
-        label_set = ticket['labels']
-        if STATUS_AS_LABEL:
-            issue_args['state'] = label_set.get_status_label().title
-        else:
-            issue_args['state'] = ticket_state(ticket)
-
-        issue_args['labels'] = ','.join(label_set.get_label_titles())
-        issue_args['author'] = usermanager.get_email(issue_args['author'])
-        issue_args['assignee'] = usermanager.get_email(issue_args['assignee'])
-
-        update_timetracking(issue_args, ticket)
-
-        issue_args['iid'] = ticket_id
-
-        LOG.info("TICKET: #%r: %r" % (ticket_id, ticket))
-        LOG.info("ISSUE: %r" % issue_args)
-
 def migrate_tickets(trac_tickets, gitlab, default_user, usermap, attachments_path, gitlab_project_name, svn2git_revisions={}, labelmanager=None, usermanager=None):
     LOG.info('MIGRATING %d tickets to issues', len(trac_tickets))
     if len(trac_tickets) == 0:
         return
     for ticket_id, ticket in six.iteritems(trac_tickets):
-        LOG.info('migrate #%d: %r', ticket_id, ticket)
+        LOG.info('migrate #{}: {}'.format(ticket_id, ticket))
         # trac note_id -> gitlab note_id
         note_map = {}
         trac_note_id = 1
 
-        issue_args = ticket_kwargs(ticket_id, ticket, svn2git_revisions=svn2git_revisions)
+        issue_args = ticket_kwargs(ticket, ticket_id, attachments_path, svn2git_revisions=svn2git_revisions)
         label_set = ticket['labels']
         if STATUS_AS_LABEL:
             issue_args['state'] = label_set.get_status_label().title
@@ -502,14 +475,17 @@ def migrate_tickets(trac_tickets, gitlab, default_user, usermap, attachments_pat
         issue_args['gitlab_project_name'] = gitlab_project_name
 
         # Create
-        gitlab_issue_id = gitlab.create_issue(**issue_args)
+        gitlab_issue_id = gitlab.create_issue(attachments_path, **issue_args)
         LOG.info('migrated ticket %s -> %s', ticket_id, gitlab_issue_id)
 
         # migrate attachments from comments
         for filename, attachment in six.iteritems(ticket['attachments']):
             attrs = attachment['attributes']
             LOG.info('saving attachment: %s (%d bytes) author: %s, description: %s' % (filename, attrs['size'], attrs['author'], attrs['description']))
-            gitlab.save_attachment('issue_%s/%s' % (ticket_id, filename), attachment['data'])
+            try:
+                gitlab.save_attachment('issue_%s/%s' % (ticket_id, filename), attachment['data'])
+            except:
+                pass
 
         # Migrate whole changelog
         LOG.info('changelog: %r', ticket['changelog'])
@@ -630,7 +606,7 @@ def migrate(trac, gitlab_project_name, gitlab_version, gitlab_db_connector,
     # XXX: make configurable
     gitlab.clear_issues()
     gitlab.clear_milestones()
-#    gitlab.clear_labels()
+    gitlab.clear_labels()
 
     # 1. Wiki
     LOG.info('migrating %d wiki pages to: %s', len(trac['wiki']), output_wiki_path)

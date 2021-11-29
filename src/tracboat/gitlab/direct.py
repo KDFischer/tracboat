@@ -279,7 +279,7 @@ class Connection(ConnectionBase):
                 type='ProjectLabel',
             ).save()
 
-    def create_issue(self, **kwargs):
+    def create_issue(self, attachments_path, **kwargs):
         M = self.model
         # 1. Issue
         # fix foreign keys
@@ -331,25 +331,30 @@ class Connection(ConnectionBase):
                 user=issue.author
             ).save()
 
-        # 5. Attachments
-        for hash in kwargs['uploads']:
-            info = kwargs['uploads'][hash]
-            directory = os.path.join(self.uploads_path, '%s/issue_%s' % (kwargs['gitlab_project_name'], kwargs['iid']))
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            fname = os.path.join(self.uploads_path, '%s/issue_%s/%s' % (kwargs['gitlab_project_name'], kwargs['iid'], info['attributes']['filename']))
-            with open(fname, "wb") as bin_f:
-                bin_f.write(info['data'])
-            M.Uploads.create(
-                    checksum=hash,
-                    created_at=info['attributes']['time'],
-                    model=issue.project,
-                    model_type="Project",
-                    path='%s/%s' % (hash, info['attributes']['filename']),
-                    secret=hash,
-                    size=len(info['data']),
-                    uploader='FileUploader'
-            )
+        # # 5. Attachments
+        # for hash in kwargs['uploads']:
+        #     info = kwargs['uploads'][hash]
+        #     directory = os.path.join(self.uploads_path, '%s/issue_%s' % (kwargs['gitlab_project_name'], kwargs['iid']))
+        #     if not os.path.exists(directory):
+        #         os.makedirs(directory)
+        #     # copy file (filename is hash value) in attachments_path to uploads_pash
+        #     ofname = os.path.join(self.uploads_path, '%s/issue_%s/%s' % (kwargs['gitlab_project_name'], kwargs['iid'], info['attributes']['filename']))
+        #     ifname = os.path.join(attachments_path, hash)
+        #     try:
+        #         shutil.copyfile(ifname, ofname)
+        #     except:
+        #         LOG.warning("File %s couldn't be uploaded!", ifname)
+        #     # create database entry for uploades (copied) file
+        #     M.Uploads.create(
+        #             checksum=hash,
+        #             created_at=info['attributes']['time'],
+        #             model=issue.project,
+        #             model_type="Project",
+        #             path='%s/%s' % (hash, info['attributes']['filename']),
+        #             secret=hash,
+        #             size=len(info['data']),
+        #             uploader='FileUploader'
+        #     )
         return issue.id
 
     def comment_issue(self, issue_id=None, binary_attachment=None, **kwargs):
