@@ -16,7 +16,7 @@ See license information at the bottom of this file
 
 from __future__ import division
 import datetime
-import re
+import regex as re
 import os
 import codecs
 from pprint import pprint
@@ -175,6 +175,7 @@ def convert(text, base_path, multilines=True, note_map={}, attachments_path=None
             return "%(git_hash)s" % d
 
     image_re = re.compile(r'\[\[Image\((?:(?P<module>(?:source|wiki)):)?(?P<path>[^)]+)\)\]\]')
+
     def image_replace(m):
         """
         https://trac.edgewall.org/wiki/WikiFormatting#Images
