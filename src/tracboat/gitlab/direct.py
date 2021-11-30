@@ -279,7 +279,7 @@ class Connection(ConnectionBase):
                 type='ProjectLabel',
             ).save()
 
-    def create_issue(self, attachments_path, **kwargs):
+    def create_issue(self, **kwargs):
         M = self.model
         # 1. Issue
         # fix foreign keys
@@ -399,7 +399,7 @@ class Connection(ConnectionBase):
         filename = os.path.join(self.uploads_path, self.project_qualname, path)
         filename = filename.encode('ascii', 'ignore')
         if os.path.isfile(filename):
-            with open(filename, "rb") as bin_f:
+            with open(filename, "rb") as bin_f: 
                 file_content = bin_f.read()
                 bin_f.close()
 

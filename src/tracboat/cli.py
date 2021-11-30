@@ -163,6 +163,18 @@ def GITLAB_OPTIONS(func):  # pylint: disable=invalid-name
         show_default=True,
         help='GitLab target version',
     )
+    @click.option(
+        '--gitlab_api_url',
+        default='https://localhost/',
+        show_default=True,
+        help='URL of the GitLab server to use the API',
+    )
+    @click.option(
+        '--gitlab-private-key',
+        default='',
+        show_default=False,
+        help='GitLab private key to access the API',
+    )
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return func(*args, **kwargs)
@@ -345,7 +357,8 @@ def export(ctx, trac_uri, ssl_verify, format, out_file, attachments_path):  # py
 @click.pass_context
 def migrate(ctx, umap, umap_file, fallback_user, trac_uri, ssl_verify,
             gitlab_project_name, gitlab_db_user, gitlab_db_password, gitlab_db_name,
-            gitlab_db_path, gitlab_uploads_path, gitlab_version, wiki_path, attachments_path, 
+            gitlab_db_path, gitlab_uploads_path, gitlab_version, gitlab_private_key,
+            gitlab_api_url, wiki_path, attachments_path, 
             from_export_file, mock, mock_path):
     """migrate a Trac instance"""
     LOG = logging.getLogger(ctx.info_name)
@@ -420,6 +433,11 @@ def migrate(ctx, umap, umap_file, fallback_user, trac_uri, ssl_verify,
     LOG.info('GitLab db name: %s', gitlab_db_name)
     LOG.info('GitLab uploads: %s', gitlab_uploads_path)
     LOG.info('GitLab fallback user: %s', fallback_user)
+    LOG.info('GitLab API url: %s', gitlab_api_url)
+    if  gitlab_private_key:
+        LOG.info('GitLab private key is set')
+    else:
+        LOG.warning('GitLab private key is NOT set!')
     trac_migrate.migrate(
         trac=project,
         gitlab_project_name=gitlab_project_name,
@@ -432,6 +450,8 @@ def migrate(ctx, umap, umap_file, fallback_user, trac_uri, ssl_verify,
         usermap=usermap,
         userattrs=userattrs,
         svn2git_revisions=svn2git_revisions,
+        gitlab_private_key=gitlab_private_key,
+        gitlab_api_url=gitlab_api_url,
     )
     LOG.info('migration done.')
 
