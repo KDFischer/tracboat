@@ -67,4 +67,7 @@ target/
 .venv/
 /VENV
 
+# VS Code
+*.code-workspace
+
 dgXd/
